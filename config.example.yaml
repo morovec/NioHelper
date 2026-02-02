@@ -1,0 +1,38 @@
+# Telegram Settings
+telegram:
+  token: token
+  group_id: "@psa_union"
+  admin_chat_id: -id
+  events_thread_id: id
+  posting_thread_id: id
+  logs_thread_id: id
+  translation_thread_id: id
+  owner_id: id
+  
+
+# VK Settings
+vk:
+  bot_token: token
+  user_token: token
+  group_id: id
+  owner_id: id
+
+# General Settings
+logging:
+  level: "INFO"
+  file: "logs/bot.log"
+  rotation: "10 MB"
+
+# Retry Settings
+retries:
+  max_attempts: 5
+  delay_seconds: 10
+
+#Proxy for blocked sites
+proxy:
+  https: http://user:password@ip:port
+
+#Datas for parsing sites
+furaffinity:
+  a: a
+  b: b
