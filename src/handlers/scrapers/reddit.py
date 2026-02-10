@@ -127,7 +127,7 @@ class RedditDownloader:
             media_url = post_data.get("url")
             files = [str(await self._download_file(media_url))]
             
-        return PostParsed(author=f"u/{author}", media_paths=files)
+        return PostParsed(author=author, media_paths=files)
 
 
 reddit_downloader = RedditDownloader()
