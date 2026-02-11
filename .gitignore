@@ -16,3 +16,6 @@ __pycache__/
 .venv/
 
 src/database
+
+src/media_files/for_posts/*
+src/media_files/from_posts/*

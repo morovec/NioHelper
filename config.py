@@ -11,7 +11,9 @@ from aiogram.enums import ParseMode
 
 from vkbottle.bot import Bot as VKBot
 from vkbottle.user import User as VKUser
-from vkbottle.bot import BotLabeler
+
+from aiohttp import BasicAuth
+from aiogram.client.session.aiohttp import AiohttpSession
 
 
 @dataclass
@@ -111,11 +113,14 @@ def load_settings(path: str = "config.yaml") -> Settings:
 try:
     settings = load_settings()
 
+    session = AiohttpSession(proxy=settings.proxy_get["https"])
+
     vk_user = VKUser(token=settings.vk.user_token)
     vk_bot = vk_bot = VKBot(token=settings.vk.bot_token)
         
     tg_bot = TGBot(token=settings.telegram.token,
-                   default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+                   default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+                   session=session)
 except Exception as ex:
     # Fallback for initialization or when file is missing (e.g. during first setup)
     logger.critical(ex)
