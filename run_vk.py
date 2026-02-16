@@ -32,4 +32,3 @@ if __name__ == "__main__":
         logger.warning("Bot stopped by user (Ctrl+C).")
     except Exception as e:
         logger.error(f"Fatal error: {str(e)}")
-

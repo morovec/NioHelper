@@ -35,21 +35,26 @@ async def repost_post(text: str, attachments: list[WallWallpostAttachment]) -> O
     
     for attachment in attachments:
         if attachment.type == WallWallpostAttachmentType.PHOTO:
-            copyright_url = get_copyright_from_caption(attachment.photo.text)
+            if not copyright_url:
+                copyright_url = get_copyright_from_caption(attachment.photo.text)
             text = author_copyright(text, copyright_url, author)
 
             photo_url = attachment.photo.sizes[-1].url
             photo = URLInputFile(url=photo_url, filename="media.png")
 
-            if attachments_amount == 1:
-                await tg.send_photo(chat_id=settings.telegram.group_id,
-                                    photo=photo,
-                                    caption=text)
+            if attachments_amount == 0:
+                try:
+                    await tg.send_photo(chat_id=settings.telegram.group_id,
+                                        photo=photo,
+                                        caption=text)
+                except Exception as ex:
+                    await tg_logger.send_log(f"Hе получилось сделать репост: {ex}")
             else:
                 tg_attachments.append(InputMediaPhoto(media=photo, caption=text))
                 
         elif attachment.type == WallWallpostAttachmentType.VIDEO:
-            copyright_url = get_copyright_from_caption(attachment.video.description)
+            if not copyright_url:
+                copyright_url = get_copyright_from_caption(attachment.video.description)
             text = author_copyright(text, copyright_url, author)
             video_data = media_downloader.video(attachment.video)
 
@@ -58,16 +63,20 @@ async def repost_post(text: str, attachments: list[WallWallpostAttachment]) -> O
                                  headers=video_data["headers"])
 
             if attachments_amount == 1:
-                await tg.send_animation(chat_id=settings.telegram.group_id,
-                                        animation=video,
-                                        caption=text)
+                try:
+                    await tg.send_animation(chat_id=settings.telegram.group_id,
+                                            animation=video,
+                                            caption=text)
+                except Exception as ex:
+                    await tg_logger.send_log(f"Hе получилось сделать репост: {ex}")
             else:
                 tg_attachments.append(InputMediaAnimation(media=video,
                                                           caption=text))
                 
 
         elif attachment.type == WallWallpostAttachmentType.DOC:
-            copyright_url = get_copyright_from_caption(attachment.doc.title)
+            if not copyright_url:
+                copyright_url = get_copyright_from_caption(attachment.doc.title)
             text = author_copyright(text, copyright_url, author)
 
             doc_url = attachment.doc.url
@@ -76,9 +85,12 @@ async def repost_post(text: str, attachments: list[WallWallpostAttachment]) -> O
                                filename="media.gif")
 
             if attachments_amount == 1:
-                await tg.send_document(chat_id=settings.telegram.group_id,
-                                       document=doc,
-                                       caption=text)
+                try:
+                    await tg.send_document(chat_id=settings.telegram.group_id,
+                                           document=doc,
+                                           caption=text)
+                except Exception as ex:
+                    await tg_logger.send_log(f"Hе получилось сделать репост: {ex}")
             else:
                 tg_attachments.append(InputMediaDocument(media=doc,
                                                          caption=text))
@@ -88,6 +100,7 @@ async def repost_post(text: str, attachments: list[WallWallpostAttachment]) -> O
         try:
             await tg.send_media_group(chat_id=settings.telegram.group_id,
                                       media=tg_attachments)
+            await tg_logger.send_log(f"Успешный репост!")
         except Exception as ex:
             await tg_logger.send_log(f"Ошибка при отправке поста в тг: {ex}")
 
@@ -107,4 +120,4 @@ async def wall_bridge(event: GroupTypes.WallPostNew):
                                         post_id=event.object.id,
                                         message=comment_msg,
                                         from_group=settings.vk.group_id)
-        await tg_logger.send_log("Отправил комментарий под пост!")
+        await tg_logger.send_log("Отправил оригинал под пост!")

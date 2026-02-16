@@ -1,13 +1,14 @@
 from config import settings, tg_bot as tg
 
 from aiogram.types import FSInputFile
+from aiogram.types import Message
 
 
 class PostingNotify:
     def __init__(self):
-        self.message = None
-        self.message_id = None
-        self.count = 0
+        self.message: str = None
+        self.message_id: int = None
+        self.count: int = 0
 
     async def msg_to_translation(self, paths: list[str]):
         for path in paths:
@@ -27,7 +28,7 @@ class PostingNotify:
     async def edit_message(self, text):
         self.message = text
         await tg.edit_message_text(
-              chat_id=settings.telegram.posting_thread_id,
+              chat_id=settings.admin_chat_id,
               text=text, 
               message_id=self.message_id
               )
@@ -40,11 +41,7 @@ class PostingNotify:
             self.message = split_message[0] + msg + "\n\n" + split_message[1]
         else:
             self.message += msg
-        await tg.edit_message_text(
-              chat_id=settings.admin_chat_id,
-              text=self.message, 
-              message_id=self.message_id
-              )
+        await self.edit_message(self.message)
     
     async def add_error_post(self, post):
         if "Ошибки" not in self.message:
@@ -59,11 +56,22 @@ class PostingNotify:
 posting_notify = PostingNotify()
 
 class TelegramLogger:
-     async def send_log(self, text):
-        await tg.send_message(
+    def __init__(self):
+        self.log_id: int = None
+
+    async def send_log(self, text) -> None: # Отправлят логи в чат для логов
+        message = await tg.send_message(
             chat_id=settings.admin_chat_id,
             message_thread_id=settings.logs_thread_id,
             text=text
             )
+        self.log_id = message.message_id
+    
+    async def change_log(self, text) -> None: # Меняет текст последних логов
+        await tg.edit_message_text(
+              chat_id=settings.admin_chat_id,
+              text=text, 
+              message_id=self.log_id
+              )
 
 tg_logger = TelegramLogger()

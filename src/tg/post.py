@@ -15,6 +15,8 @@ from aiogram import Router, F
 from aiogram.types import Message
 from aiogram.filters import Command
 
+import traceback
+
 post_router = Router(name=__name__)
 
 hours = [8, 10, 12, 14, 16, 18, 20, 22] #Moscow | UTC +7
@@ -34,7 +36,7 @@ async def get_occupied_times() -> set[int]:
             occupied_times.update(
                 item.date for item in data.items
             )
-        
+            await tg_logger.send_log(f"Получил запланированные посты!\n{occupied_times}")
             if data.count <= 100:
                 break
 
@@ -46,28 +48,41 @@ async def get_occupied_times() -> set[int]:
 
 async def get_free_time(post_amount: int) -> list[int]:
     occupied = await get_occupied_times()
-    hours = [5, 7, 9, 11, 13, 15, 17, 19] # UTC | Moscow +3 UTC
+    hours = [5, 7, 9, 11, 13, 15, 17, 19]  # UTC | Moscow +3 UTC
     
     free_times = []
-
-    current_date = datetime.now(timezone.utc).replace(
-        minute=0, second=0, microsecond=0
-    )
+    
+    # Текущая дата и время
+    now = datetime.now(timezone.utc)
+    current_date = now.replace(minute=0, second=0, microsecond=0)
+    
+    # Вычисляем дату через неделю от текущего момента
+    one_week_from_now = now + timedelta(days=7)
     
     while len(free_times) < post_amount:
         for h in hours:
-
             slot = current_date.replace(hour=h)
+            
+            # Проверяем, что слот в будущем
+            if slot <= now:
+                continue
+                
+            # Проверяем, что слот не раньше чем через неделю
+            if slot < one_week_from_now:
+                continue
+                
             ts = int(slot.timestamp())
             
-
-            if ts > datetime.now().timestamp() and ts not in occupied:
+            # Проверяем, что слот не занят
+            if ts not in occupied:
                 free_times.append(ts)
+                
                 if len(free_times) == post_amount:
                     break
         
         current_date += timedelta(days=1)
-        
+    
+    await tg_logger.send_log(f"Возвращаю массив свободных временных слотов. \n{free_times}")
     return free_times
 
 def get_tags_message(tags: str):
@@ -86,23 +101,29 @@ async def process_single_post(post_str: str, publish_time: int) -> str:
     try:
         post_url, tags = map(str, post_str.split())
         data = await get_post_from_url(post_url)
+        await tg_logger.send_log(f"Получил данные с поста:\nАвтор:{data.author}")
     except ValueError as e:
         await posting_notify.add_error_post(post_str)
         await tg_logger.send_log(f"Ошибка при получении данных поста\n{str(e)}")
         raise e
 
-    if "и" in tags:
-        await posting_notify.msg_to_translation(data.media_paths)
-
     try:
+        await tg_logger.send_log("Загружаю файлы на сервера ВК...")
         attachments = await media_uploader.upload_media(file_paths=data.media_paths,
                                                         post_url=post_url)
+        await tg_logger.change_log("Файлы успешно загружены!")
     except Exception as e:
+        await tg_logger.change_log("Ошибка при загрузке файлов на сервера ВК")
         await posting_notify.add_error_post(post_str)
         raise e
 
-    message = format_message(data.author, tags)
+    if "и" in tags:
+        tg_logger.send_log(f"Отправляю файлы на перевод!")
+        await posting_notify.msg_to_translation(data.media_paths)
+        await tg_logger.change_log("Файлы успешно отправлены!")
 
+    message = format_message(data.author, tags)
+    await tg_logger.send_log("Отправляю пост в отложку...")
     post_info = await vk.api.wall.post(
         message=message,
         attachments=attachments,
@@ -110,6 +131,7 @@ async def process_single_post(post_str: str, publish_time: int) -> str:
         owner_id=-settings.vk.group_id,
         from_group=1
     )
+    await tg_logger.change_log("Отправил пост в отложку!")
 
     return f"https://vk.com/wall{-settings.vk.group_id}_{post_info.post_id}"
 
@@ -129,7 +151,7 @@ async def handle_posting_data(posting_data: str) -> None:
             
         except Exception as e:
             logger.critical(e)
-            await tg_logger.send_log(f"Ошибка при обработке поста {post_str}:\n{e}")
+            await tg_logger.send_log(f"Ошибка при обработке поста {post_str}:\n{traceback.format_exc()}")
             continue
 
 @post_router.message(Command("post"), F.chat.id == settings.admin_chat_id)

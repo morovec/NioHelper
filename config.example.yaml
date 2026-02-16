@@ -3,11 +3,11 @@ telegram:
   token: token
   group_id: "@psa_union"
   admin_chat_id: -id
-  events_thread_id: id
-  posting_thread_id: id
-  logs_thread_id: id
-  translation_thread_id: id
-  owner_id: id
+  events_thread_id: None
+  posting_thread_id: None
+  logs_thread_id: None
+  translation_thread_id: None
+  owner_id: None
   
 
 # VK Settings

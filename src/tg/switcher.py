@@ -9,9 +9,9 @@ switcher_router = Router(name=__name__)
 @switcher_router.startup()
 async def on_startup() -> None:
     logger.info("Bot powered on!")
-    await tg_logger.send_log(messages.tg_startup)
+    await tg_logger.send_log(messages.startup)
 
 @switcher_router.shutdown()
 async def on_shutdown() -> None:
     logger.info("Bot powered off!")
-    await tg_logger.send_log(messages.tg_shutdown)
+    await tg_logger.send_log(messages.shutdown)

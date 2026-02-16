@@ -4,9 +4,11 @@ from typing import List
 from vkbottle.tools import PhotoWallUploader, DocWallUploader, VideoUploader
 from vkbottle_types.objects import VideoVideoFull
 
-from config import settings, vk_user as vk
+from config import settings, vk_user as vk, vk_bot
 from src.resources import media_title, description_part
 from src.tg.notify import tg_logger
+
+from src.handlers import file_open
 
 import requests
 import traceback
@@ -14,7 +16,6 @@ import traceback
 class MediaUploader:
     def __init__(self):
         self.photo_uploader = PhotoWallUploader(vk.api)
-        self.doc_uploader = DocWallUploader(vk.api)
         self.video_uploader = VideoUploader(vk.api)
 
     async def upload_media(self, file_paths: List[str], post_url: str) -> List[str]:
@@ -56,9 +57,13 @@ class MediaUploader:
                     attachments.append(video)
                     
                 else:
-                    doc = await self.doc_uploader.upload(str(file_path),
-                                                         group_id=settings.vk.group_id,
-                                                         title=description)
+                    upload_url = (await vk.api.docs.get_wall_upload_server(group_id=settings.vk.group_id)).upload_url
+                    doc_file = requests.post(upload_url,
+                                             files={'file': file_open(file_path)}).json()["file"]
+
+                    docData = (await vk.api.docs.save(file=doc_file,
+                                                      title=description)).doc
+                    doc = f"doc{docData.owner_id}_{docData.id}"
                     attachments.append(doc)
                     
             except Exception as ex:
