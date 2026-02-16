@@ -36,14 +36,13 @@ async def get_occupied_times() -> set[int]:
             occupied_times.update(
                 item.date for item in data.items
             )
-            await tg_logger.send_log(f"Получил запланированные посты!\n{occupied_times}")
             if data.count <= 100:
                 break
 
         except Exception as e:
             logger.error(f"VK API Error: {e}")
             break
-
+    await tg_logger.send_log(f"Получил запланированные посты!\n{occupied_times}")
     return occupied_times
 
 async def get_free_time(post_amount: int) -> list[int]:
