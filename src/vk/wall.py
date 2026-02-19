@@ -9,12 +9,15 @@ from src.tg.notify import tg_logger
 from src.handlers.utils import vk_text_to_tg
 from src.vk.media import media_downloader
 
+import traceback
+
 from aiogram.types import InputMediaPhoto, InputMediaAnimation, URLInputFile, InputMediaDocument
 
 wall_labeler = BotLabeler()
 
 def get_copyright_from_caption(caption: str) -> str:
-    return caption.split()[-1]
+    if caption:
+        return caption.split()[-1]
 
 def author_copyright(text: str, copyright_url: str, author: str) -> str:
     if not text: return None
@@ -42,15 +45,7 @@ async def repost_post(text: str, attachments: list[WallWallpostAttachment]) -> O
             photo_url = attachment.photo.sizes[-1].url
             photo = URLInputFile(url=photo_url, filename="media.png")
 
-            if attachments_amount == 0:
-                try:
-                    await tg.send_photo(chat_id=settings.telegram.group_id,
-                                        photo=photo,
-                                        caption=text)
-                except Exception as ex:
-                    await tg_logger.send_log(f"Hе получилось сделать репост: {ex}")
-            else:
-                tg_attachments.append(InputMediaPhoto(media=photo, caption=text))
+            tg_attachments.append(InputMediaPhoto(media=photo, caption=text))
                 
         elif attachment.type == WallWallpostAttachmentType.VIDEO:
             if not copyright_url:
@@ -61,18 +56,7 @@ async def repost_post(text: str, attachments: list[WallWallpostAttachment]) -> O
             video = URLInputFile(url=video_data["url"],
                                  filename="video.mp4",
                                  headers=video_data["headers"])
-
-            if attachments_amount == 1:
-                try:
-                    await tg.send_animation(chat_id=settings.telegram.group_id,
-                                            animation=video,
-                                            caption=text)
-                except Exception as ex:
-                    await tg_logger.send_log(f"Hе получилось сделать репост: {ex}")
-            else:
-                tg_attachments.append(InputMediaAnimation(media=video,
-                                                          caption=text))
-                
+            tg_attachments.append(InputMediaAnimation(media=video, caption=text))
 
         elif attachment.type == WallWallpostAttachmentType.DOC:
             if not copyright_url:
@@ -83,26 +67,15 @@ async def repost_post(text: str, attachments: list[WallWallpostAttachment]) -> O
 
             doc = URLInputFile(url=doc_url,
                                filename="media.gif")
-
-            if attachments_amount == 1:
-                try:
-                    await tg.send_document(chat_id=settings.telegram.group_id,
-                                           document=doc,
-                                           caption=text)
-                except Exception as ex:
-                    await tg_logger.send_log(f"Hе получилось сделать репост: {ex}")
-            else:
-                tg_attachments.append(InputMediaDocument(media=doc,
-                                                         caption=text))
+            tg_attachments.append(InputMediaDocument(media=doc, caption=text))
         text = None
 
-    if attachments_amount > 1:
-        try:
-            await tg.send_media_group(chat_id=settings.telegram.group_id,
-                                      media=tg_attachments)
-            await tg_logger.send_log(f"Успешный репост!")
-        except Exception as ex:
-            await tg_logger.send_log(f"Ошибка при отправке поста в тг: {ex}")
+    try:
+        await tg.send_media_group(chat_id=settings.telegram.group_id,
+                                  media=tg_attachments)
+        await tg_logger.change_log(f"Успешный репост!")
+    except Exception as ex:
+        await tg_logger.change_log(f"Ошибка при отправке поста в тг: {ex}\n{traceback.format_exc()}")
 
     if copyright_url:
         return f'Оригинал:\n{copyright_url}'

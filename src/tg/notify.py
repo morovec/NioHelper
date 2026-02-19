@@ -1,7 +1,7 @@
 from config import settings, tg_bot as tg
 
 from aiogram.types import FSInputFile
-from aiogram.types import Message
+import asyncio
 
 
 class PostingNotify:
@@ -69,9 +69,9 @@ class TelegramLogger:
     
     async def change_log(self, text) -> None: # Меняет текст последних логов
         await tg.edit_message_text(
-              chat_id=settings.admin_chat_id,
-              text=text, 
-              message_id=self.log_id
-              )
+            chat_id=settings.admin_chat_id,
+            text=text, 
+            message_id=self.log_id
+            )
 
 tg_logger = TelegramLogger()

@@ -57,11 +57,11 @@ class MediaUploader:
                     attachments.append(video)
                     
                 else:
-                    upload_url = (await vk.api.docs.get_wall_upload_server(group_id=settings.vk.group_id)).upload_url
+                    upload_url = (await vk_bot.api.docs.get_wall_upload_server(group_id=settings.vk.group_id)).upload_url
                     doc_file = requests.post(upload_url,
                                              files={'file': file_open(file_path)}).json()["file"]
 
-                    docData = (await vk.api.docs.save(file=doc_file,
+                    docData = (await vk_bot.api.docs.save(file=doc_file,
                                                       title=description)).doc
                     doc = f"doc{docData.owner_id}_{docData.id}"
                     attachments.append(doc)
