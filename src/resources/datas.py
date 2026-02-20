@@ -9,6 +9,7 @@ tags_mapping = {
 }
 
 path_to_media = "src/media_files/for_posts/media"
+path_to_replacer = "src/media_files/replacer/media"
 
 media_title = "PSA Union"
 description_part = "Оригинал: "

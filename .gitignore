@@ -18,4 +18,4 @@ __pycache__/
 src/database
 
 src/media_files/for_posts/*
-src/media_files/from_posts/*
+src/media_files/replacer/*

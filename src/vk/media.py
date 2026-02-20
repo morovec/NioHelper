@@ -31,7 +31,7 @@ class MediaUploader:
         attachments = []
         for file_path in file_paths:
             if not os.path.exists(file_path):
-                tg_logger.send_log(f"Файл не найден: {file_path}")
+                await tg_logger.send_log(f"Файл не найден: {file_path}")
                 continue
 
             description = description_part + post_url
