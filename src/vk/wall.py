@@ -27,8 +27,6 @@ def author_copyright(text: str, copyright_url: str, author: str) -> str:
 
 async def repost_post(text: str, attachments: list[WallWallpostAttachment]) -> Optional[str]:
     text = vk_text_to_tg(text)
-    await tg_logger.send_log("Пытаюсь сделать репост...")
-    attachments_amount = len(attachments)
 
     tg_attachments = []
     author = ""
@@ -73,9 +71,9 @@ async def repost_post(text: str, attachments: list[WallWallpostAttachment]) -> O
     try:
         await tg.send_media_group(chat_id=settings.telegram.group_id,
                                   media=tg_attachments)
-        await tg_logger.change_log(f"Успешный репост!")
+        await tg_logger.send_log(f"Успешный репост!")
     except Exception as ex:
-        await tg_logger.change_log(f"Ошибка при отправке поста в тг: {ex}\n{traceback.format_exc()}")
+        await tg_logger.send_log(f"Ошибка при отправке поста в тг: {ex}\n{traceback.format_exc()}")
 
     if copyright_url:
         return f'Оригинал:\n{copyright_url}'
@@ -89,8 +87,11 @@ async def wall_bridge(event: GroupTypes.WallPostNew):
     comment_msg = await repost_post(text=event.object.text,
                                     attachments=event.object.attachments)
     if comment_msg:
-        await vk.api.wall.create_comment(owner_id=-settings.vk.group_id,
-                                        post_id=event.object.id,
-                                        message=comment_msg,
-                                        from_group=settings.vk.group_id)
-        await tg_logger.send_log("Отправил оригинал под пост!")
+        try:
+            await vk.api.wall.create_comment(owner_id=-settings.vk.group_id,
+                                            post_id=event.object.id,
+                                            message=comment_msg,
+                                            from_group=settings.vk.group_id)
+            await tg_logger.send_log("Отправил оригинал под пост!")
+        except Exception as ex:
+            await tg_logger.send_log(f"Ошибка при отправке комментария к посту: {ex}\n{traceback.format_exc()}")

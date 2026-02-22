@@ -42,7 +42,6 @@ async def get_occupied_times() -> set[int]:
         except Exception as e:
             logger.error(f"VK API Error: {e}")
             break
-    await tg_logger.change_log(f"Получил запланированные посты!\n{occupied_times}")
     return occupied_times
 
 async def get_free_time(post_amount: int) -> list[int]:
@@ -81,7 +80,6 @@ async def get_free_time(post_amount: int) -> list[int]:
         
         current_date += timedelta(days=1)
     
-    await tg_logger.change_log(f"Возвращаю массив свободных временных слотов. \n{free_times}")
     return free_times
 
 def get_tags_message(tags: str):
@@ -97,22 +95,11 @@ def format_message(author: str, tags: str) -> str:
     return f"Автор: {author}\n\n{formatted_tags}"
 
 async def process_single_post(post_str: str, publish_time: int) -> str:
-    try:
-        post_url, tags = map(str, post_str.split())
-        data = await get_post_from_url(post_url)
-    except ValueError as e:
-        await posting_notify.add_error_post(post_str)
-        await tg_logger.change_log(f"Ошибка при получении данных поста\n{str(e)}")
-        raise e
+    post_url, tags = map(str, post_str.split())
+    data = await get_post_from_url(post_url)
 
-    try:
-        await tg_logger.change_log("Загружаю файлы на сервера ВК...")
-        attachments = await media_uploader.upload_media(file_paths=data.media_paths,
-                                                        post_url=post_url)
-    except Exception as e:
-        await tg_logger.change_log("Ошибка при загрузке файлов на сервера ВК")
-        await posting_notify.add_error_post(post_str)
-        raise e
+    attachments = await media_uploader.upload_media(file_paths=data.media_paths,
+                                                    post_url=post_url)
 
     if "и" in tags:
         await posting_notify.msg_to_translation(data.media_paths)
@@ -144,7 +131,6 @@ async def handle_posting_data(posting_data: str) -> None:
         except Exception as e:
             logger.critical(e)
             await tg_logger.send_log(f"Ошибка при обработке поста {post_str}:\n{traceback.format_exc()}")
-            continue
 
 @post_router.message(Command("post"), F.chat.id == settings.admin_chat_id)
 async def post(message: Message):
