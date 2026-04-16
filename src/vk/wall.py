@@ -4,7 +4,7 @@ from vkbottle_types.objects import WallWallpostAttachment, WallWallpostAttachmen
 
 from typing import Optional
 
-from config import settings, tg_bot as tg, vk_user as vk
+from config import settings, tg_bot as tg, vk_bot as vk
 from src.tg.notify import tg_logger
 from src.handlers.utils import vk_text_to_tg
 from src.vk.media import media_downloader

@@ -55,7 +55,7 @@ async def get_free_time(post_amount: int) -> list[int]:
     current_date = now.replace(minute=0, second=0, microsecond=0)
     
     # Вычисляем дату через неделю от текущего момента
-    one_week_from_now = now + timedelta(days=7)
+    one_week_from_now = now + timedelta(days=2)
     
     while len(free_times) < post_amount:
         for h in hours:
@@ -118,18 +118,16 @@ async def handle_posting_data(posting_data: str) -> None:
     free_post_times = await get_free_time(len(posting_data))
     time_idx = 0
     for post_str in posting_data:
+        current_slot = free_post_times[time_idx]
         try:
-            current_slot = free_post_times[time_idx]
-            
             success_link = await process_single_post(post_str, current_slot)
             
             log_msg = f"{success_link} {time_from_timestamp(current_slot)}"
             await posting_notify.add_success_post(log_msg)
             
             time_idx += 1
-            
-        except Exception as e:
-            logger.critical(e)
+        except:
+            await posting_notify.add_error_post(post_str)
             await tg_logger.send_log(f"Ошибка при обработке поста {post_str}:\n{traceback.format_exc()}")
 
 @post_router.message(Command("post"), F.chat.id == settings.admin_chat_id)
