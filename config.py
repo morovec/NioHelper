@@ -12,7 +12,6 @@ from aiogram.enums import ParseMode
 from vkbottle.bot import Bot as VKBot
 from vkbottle.user import User as VKUser
 
-from aiohttp import BasicAuth
 from aiogram.client.session.aiohttp import AiohttpSession
 
 
@@ -54,6 +53,10 @@ class FuraffinityConfig:
     cookies: dict
 
 @dataclass
+class DatabaseConfig:
+    url: str
+
+@dataclass
 class Settings:
     telegram: TelegramConfig
     vk: VKConfig
@@ -61,6 +64,7 @@ class Settings:
     retries: RetryConfig
     proxy: ProxyConfig
     furaffinity: FuraffinityConfig
+    database: DatabaseConfig
     
     @property
     def owner_id(self) -> Optional[int]:
@@ -85,6 +89,12 @@ class Settings:
     @property
     def posting_thread_id(self) -> Optional[dict]:
         return self.telegram.posting_thread_id
+    
+    @property
+    def database_url(self) -> Optional[str]:
+        return self.database.url
+    
+    
 
 
 def load_settings(path: str = "config.yaml") -> Settings:
@@ -107,6 +117,7 @@ def load_settings(path: str = "config.yaml") -> Settings:
         retries=RetryConfig(**raw_data['retries']),
         proxy=ProxyConfig(raw_data['proxy']),
         furaffinity=FuraffinityConfig(raw_data['furaffinity']),
+        database=DatabaseConfig(**raw_data['database'])
     )
 
 # Global settings instance

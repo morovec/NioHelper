@@ -36,3 +36,6 @@ proxy:
 furaffinity:
   a: a
   b: b
+
+database:
+  url: "sqlite:///bot.db"

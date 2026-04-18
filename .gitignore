@@ -15,7 +15,5 @@ __pycache__/
 # Environments
 .venv/
 
-src/database
-
 src/media_files/for_posts/*
 src/media_files/replacer/*
