@@ -152,6 +152,7 @@ async def publish_post():
 
 
 # ========== Post inteructions ==========
+from src.tg.keyboards.posts import edit_queue_keyboard
 
 async def edit_post_caption(post_id: int, new_caption: str) -> bool:
     async with async_session() as session:
@@ -179,13 +180,9 @@ async def edit_post_caption(post_id: int, new_caption: str) -> bool:
 async def edit_queue(message: Message):
     """Показать очередь постов."""
     async with async_session() as session:
-        posts = await crud.get_edit_posts(session)
+        posts = (await crud.get_edit_posts(session))
 
     if not posts:
         return await message.answer("📭 Очередь редактирования пуста.")
 
-    await message.answer("📋 Очередь редактирования:")
-
-
-
-    
+    await message.answer(text=posts[0].caption, reply_markup=edit_queue_keyboard(posts[0]))

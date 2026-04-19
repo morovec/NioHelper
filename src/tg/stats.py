@@ -6,7 +6,7 @@ from config import settings
 
 from src.database import crud
 from src.database.db import async_session
-from types.enums import PostStatus
+from src.types.enums import PostStatus
 
 stats_router = Router()
 
