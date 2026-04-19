@@ -1,6 +1,7 @@
 import asyncio
+import random
 
-from config import settings
+from config import settings, tg_bot as bot
 
 from loguru import logger
 
@@ -18,9 +19,16 @@ from aiogram import Router, F
 from aiogram.types import Message
 from aiogram.filters import Command
 
-import traceback
+from aiogram.types import (
+    InputMediaPhoto,
+    InputMediaVideo
+)
 
 post_router = Router(name=__name__)
+
+@post_router.message(Command("publish"), F.chat.id == settings.admin_chat_id)
+async def post(message: Message):
+    await publish_post()
 
 @post_router.message(Command("post"), F.chat.id == settings.admin_chat_id)
 async def post(message: Message):
@@ -99,3 +107,85 @@ async def get_medias(file_paths: list[str]) -> list[Media]:
         medias.append(media)
         await asyncio.sleep(0.5)  # Небольшая пауза между загрузками, чтобы избежать проблем с API
     return medias
+
+
+async def publish_post():
+    async with async_session() as session:
+        ready_posts = await crud.get_ready_posts(session)
+        
+        logger.info(f"Найдено постов для публикации: {len(ready_posts)}")
+        tg_logger.send_log(f"Найдено постов для публикации: {len(ready_posts)}")
+
+        if not ready_posts:
+            return 0
+
+        post = random.choice(ready_posts)
+        logger.info(f"Публикуем пост ID {post.id} с caption: {post.caption}")
+
+        media_list = await crud.get_media_by_post_id(session, post.id)
+
+        if len(media_list) == 1:
+            item = media_list[0]
+            if item.media_type == "photo":
+                await bot.send_photo(settings.telegram.group_id, item.telegram_file_id, caption=post.caption)
+            elif item.media_type == "video":
+                await bot.send_video(settings.telegram.group_id, item.telegram_file_id, caption=post.caption)
+            await crud.delete_post(session, post.id)
+            return 0
+        
+        album = []
+        for i, item in enumerate(media_list):
+            if item.media_type == "photo":
+                album.append(InputMediaPhoto(
+                    media=item.telegram_file_id,
+                    caption=post.caption if i == 0 else None
+                ))
+            elif item.media_type == "video":
+                album.append(InputMediaVideo(
+                    media=item.telegram_file_id,
+                    caption=post.caption if i == 0 else None
+                ))
+
+        await bot.send_media_group(chat_id=settings.telegram.group_id, media=album)
+
+        await crud.delete_post(session, post.id)
+
+
+# ========== Post inteructions ==========
+
+async def edit_post_caption(post_id: int, new_caption: str) -> bool:
+    async with async_session() as session:
+        post = await crud.get_post(session, post_id)
+        if not post:
+            return False
+        
+        caption = post.caption.split("\n\n")
+        if len(caption) == 2:
+            new_caption = new_caption + "\n\n" + caption[0] + caption[1]
+        else:
+            new_caption = new_caption + "\n\n" + caption[1] + caption[2]
+
+        post.caption = new_caption
+        if post.status == PostStatus.NEEDS_TEXT_EDIT:
+            post.status = PostStatus.READY
+        elif post.status == PostStatus.NEEDS_EDIT_AND_TRANSLATE:
+            post.status = PostStatus.NEEDS_TRANSLATE
+        session.add(post)
+        await session.commit()
+        return True
+    
+
+@post_router.message(Command("edit_queue"))
+async def edit_queue(message: Message):
+    """Показать очередь постов."""
+    async with async_session() as session:
+        posts = await crud.get_edit_posts(session)
+
+    if not posts:
+        return await message.answer("📭 Очередь редактирования пуста.")
+
+    await message.answer("📋 Очередь редактирования:")
+
+
+
+    

@@ -96,7 +96,6 @@ async def get_post(session: AsyncSession, post_id: int) -> Optional[Post]:
     return result.scalar_one_or_none()
 
 async def get_posts(session: AsyncSession) -> List[Post]:
-    """Посты со статусом READY, отсортированные по очереди."""
     result = await session.execute(
         select(Post)
         .options(selectinload(Post.media))
@@ -114,7 +113,7 @@ async def get_ready_posts(session: AsyncSession) -> List[Post]:
     )
     return list(result.scalars().all())
 
-async def get_raw_posts(session: AsyncSession) -> List[Post]:
+async def get_edit_posts(session: AsyncSession) -> List[Post]:
     """Посты со статусом READY, отсортированные по очереди."""
     result = await session.execute(
         select(Post)
@@ -168,8 +167,18 @@ async def update_post_caption(
     return result.rowcount > 0
 
 async def delete_post(session: AsyncSession, post_id: int) -> bool:
+    await session.execute(
+        delete(PostMedia).where(PostMedia.post_id == post_id)
+    )
     result = await session.execute(
         delete(Post).where(Post.id == post_id)
     )
     await session.commit()
     return result.rowcount > 0
+
+
+async def get_media_by_post_id(session: AsyncSession, post_id: int) -> List[PostMedia]:
+    result = await session.execute(
+        select(PostMedia).where(PostMedia.post_id == post_id).order_by(PostMedia.sort_order)
+    )
+    return result.scalars().all()
