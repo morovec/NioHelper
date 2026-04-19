@@ -1,10 +1,4 @@
-import time
 import re
-
-def time_from_timestamp(timestamp: int) -> str:
-    offset = 3 * 60 * 60
-    t = time.gmtime(timestamp + offset)
-    return f"{str(t.tm_mday).zfill(2)}.{str(t.tm_mon).zfill(2)} {t.tm_hour}:00"
 
 def vk_text_to_tg(text: str) -> str:
     # [id558712784|Егор Пигин] [club221960296|PSA Union]

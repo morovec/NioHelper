@@ -6,7 +6,6 @@ from datetime import datetime, timezone, timedelta
 from src.resources import tags_mapping
 
 from src.vk.media import media_uploader
-from src.handlers import time_from_timestamp
 
 from .notify import posting_notify, tg_logger
 from src.handlers.scrapers import get_post_from_url
@@ -105,14 +104,14 @@ async def process_single_post(post_str: str, publish_time: int) -> str:
         await posting_notify.msg_to_translation(data.media_paths)
 
     message = format_message(data.author, tags)
-    post_info = await vk.api.wall.post(
-        message=message,
-        attachments=attachments,
-        publish_date=publish_time,
-        owner_id=-settings.vk.group_id,
-        from_group=1
-    )
-    return f"https://vk.com/wall{-settings.vk.group_id}_{post_info.post_id}"
+    # post_info = await vk.api.wall.post(
+    #     message=message,
+    #     attachments=attachments,
+    #     publish_date=publish_time,
+    #     owner_id=-settings.vk.group_id,
+    #     from_group=1
+    # )
+    # return f"https://vk.com/wall{-settings.vk.group_id}_{post_info.post_id}"
 
 async def handle_posting_data(posting_data: str) -> None:
     free_post_times = await get_free_time(len(posting_data))
@@ -120,10 +119,10 @@ async def handle_posting_data(posting_data: str) -> None:
     for post_str in posting_data:
         current_slot = free_post_times[time_idx]
         try:
-            success_link = await process_single_post(post_str, current_slot)
+            # success_link = await process_single_post(post_str, current_slot)
             
-            log_msg = f"{success_link} {time_from_timestamp(current_slot)}"
-            await posting_notify.add_success_post(log_msg)
+            # log_msg = f"{success_link} {time_from_timestamp(current_slot)}"
+            # await posting_notify.add_success_post(log_msg)
             
             time_idx += 1
         except:

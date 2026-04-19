@@ -118,30 +118,6 @@ async def get_ready_posts(session: AsyncSession) -> List[Post]:
     )
     return list(result.scalars().all())
 
-async def get_next_ready_post(session: AsyncSession) -> Optional[Post]:
-    """Следующий пост для публикации."""
-    result = await session.execute(
-        select(Post)
-        .options(selectinload(Post.media))
-        .where(
-            Post.status == PostStatus.READY
-        )
-        .limit(1)
-    )
-    return result.scalar_one_or_none()
-
-async def get_next_raw_post(session: AsyncSession) -> Optional[Post]:
-    """Следующий пост для редакции."""
-    result = await session.execute(
-        select(Post)
-        .options(selectinload(Post.media))
-        .where(
-            Post.status != PostStatus.READY
-        )
-        .limit(1)
-    )
-    return result.scalar_one_or_none()
-
 async def get_raw_posts(session: AsyncSession) -> List[Post]:
     """Посты со статусом READY, отсортированные по очереди."""
     result = await session.execute(
@@ -161,6 +137,18 @@ async def get_tr_posts(session: AsyncSession) -> List[Post]:
         .where(
             Post.status != PostStatus.READY,
             Post.status != PostStatus.NEEDS_TEXT_EDIT
+        )
+    )
+    return list(result.scalars().all())
+
+async def get_edit_posts(session: AsyncSession) -> List[Post]:
+    """Посты со статусом READY, отсортированные по очереди."""
+    result = await session.execute(
+        select(Post)
+        .options(selectinload(Post.media))
+        .where(
+            Post.status != PostStatus.READY,
+            Post.status != PostStatus.NEEDS_IMAGE_TRANSLATE
         )
     )
     return list(result.scalars().all())
