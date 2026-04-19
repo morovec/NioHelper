@@ -1,17 +1,17 @@
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import (
     BigInteger, String, Text, Integer, Boolean,
     ForeignKey, Enum as SAEnum, Index
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import ARRAY
 
-from src.types.enums import PostStatus, Permission
+
+from src.types.enums import PostStatus
 
 from typing import List, Optional
 
-Base = declarative_base()
-
+class Base(DeclarativeBase):
+	pass
 
 class Admin(Base):
     """Админы бота"""
@@ -26,19 +26,11 @@ class Admin(Base):
     username: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False, default="Unknown")
 
-    # Список прав — хранится как массив строк
-    permissions: Mapped[List[str]] = mapped_column(
-        ARRAY(String), nullable=False, default=list
-    )
-
     # Активен ли админ
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    def has_permission(self, perm: Permission) -> bool:
-        return perm.value in self.permissions
-
     def __repr__(self):
-        return f"<Admin user_id={self.user_id} perms={self.permissions}>"
+        return f"<Admin user_id={self.user_id} username={self.username} full_name={self.full_name} active={self.is_active}>"
     
 
 class Post(Base):
@@ -65,7 +57,7 @@ class Post(Base):
     )
 
     __table_args__ = (
-        Index("status"),
+        Index("idx_post_status", "status"),
     )
 
     def __repr__(self):
@@ -90,12 +82,6 @@ class PostMedia(Base):
 
     # Telegram file_id — главное, что нужно для повторной отправки
     telegram_file_id: Mapped[str] = mapped_column(Text, nullable=False)
-
-    # Уникальный id файла (для дедупликации)
-    telegram_file_unique_id: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-
-    # Где хранится в storage-канале
-    storage_message_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
 
     # Связь
     post: Mapped["Post"] = relationship(back_populates="media")

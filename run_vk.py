@@ -1,7 +1,9 @@
 from logger import logger
 import sys
+import asyncio
 from config import settings
 
+from src.database.db import init_db
 from vkbottle.bot import Bot as VKBot
 from vkbottle.bot import BotLabeler
 
@@ -22,7 +24,8 @@ def main():
     load_labelers(labeler)
     bot = VKBot(token=settings.vk.bot_token,
                 labeler=labeler)
-    
+
+    asyncio.run(init_db())
     bot.run_forever()
 
 if __name__ == "__main__":

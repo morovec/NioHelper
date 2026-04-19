@@ -5,8 +5,8 @@ from sqlalchemy import select, update, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from database.models import Admin, Post, PostMedia
-from src.types.enums import PostStatus, Permission
+from src.database.models import Admin, Post, PostMedia
+from src.types.enums import PostStatus
 
 # ═══════════════════════════════════════════
 #  АДМИНЫ
@@ -74,16 +74,12 @@ async def add_media_to_post(
     post_id: int,
     media_type: str,
     telegram_file_id: str,
-    telegram_file_unique_id: Optional[str] = None,
-    storage_message_id: Optional[int] = None,
     sort_order: int = 0
 ) -> PostMedia:
     media = PostMedia(
         post_id=post_id,
         media_type=media_type,
         telegram_file_id=telegram_file_id,
-        telegram_file_unique_id=telegram_file_unique_id,
-        storage_message_id=storage_message_id,
         sort_order=sort_order
     )
     session.add(media)

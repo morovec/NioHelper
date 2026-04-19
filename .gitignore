@@ -15,5 +15,7 @@ __pycache__/
 # Environments
 .venv/
 
+bot.db
+
 src/media_files/for_posts/*
 src/media_files/replacer/*
