@@ -99,6 +99,14 @@ async def get_post(session: AsyncSession, post_id: int) -> Optional[Post]:
     )
     return result.scalar_one_or_none()
 
+async def get_posts(session: AsyncSession) -> List[Post]:
+    """Посты со статусом READY, отсортированные по очереди."""
+    result = await session.execute(
+        select(Post)
+        .options(selectinload(Post.media))
+    )
+    return list(result.scalars().all())
+
 async def get_ready_posts(session: AsyncSession) -> List[Post]:
     """Посты со статусом READY, отсортированные по очереди."""
     result = await session.execute(

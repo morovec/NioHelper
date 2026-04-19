@@ -3,7 +3,7 @@ from vkbottle import GroupEventType, GroupTypes
 
 from src.tg.keyboards import get_comment_kb
 
-from config import settings, vk_user as vk, tg_bot as tg
+from config import settings, vk_bot as vk, tg_bot as tg
 
 from loguru import logger
 
