@@ -15,7 +15,7 @@ async def get_posts_amount():
         posts = await crud.get_posts(session)
 
     if not posts:
-        return ("📭 Очередь пуста.")
+        return 0, 0
 
     ready_count = sum(1 for p in posts if p.status == PostStatus.READY)
     total = len(posts)

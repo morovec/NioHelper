@@ -1,6 +1,9 @@
 import asyncio
 import random
 
+from requests import session
+from sqlalchemy import delete
+
 from config import settings, tg_bot as bot
 
 from loguru import logger
@@ -10,19 +13,27 @@ from src.tg.media import media_uploader, Media
 
 from src.database import crud
 from src.database.db import async_session
+from src.database.models import PostMedia
 from src.types.enums import PostStatus
+from src.tg.keyboards.posts import post_status_keyboard, queue_keyboard
 
 from .notify import posting_notify, tg_logger
 from src.handlers.scrapers import get_post_from_url
 
 from aiogram import Router, F
-from aiogram.types import Message
+from aiogram.types import CallbackQuery, Message
 from aiogram.filters import Command
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.fsm.context import FSMContext
 
 from aiogram.types import (
     InputMediaPhoto,
     InputMediaVideo
 )
+
+class EditPostStates(StatesGroup):
+    waiting_for_text = State()
+    waiting_for_media = State()
 
 post_router = Router(name=__name__)
 
@@ -174,15 +185,3 @@ async def edit_post_caption(post_id: int, new_caption: str) -> bool:
         session.add(post)
         await session.commit()
         return True
-    
-
-@post_router.message(Command("edit_queue"))
-async def edit_queue(message: Message):
-    """Показать очередь постов."""
-    async with async_session() as session:
-        posts = (await crud.get_edit_posts(session))
-
-    if not posts:
-        return await message.answer("📭 Очередь редактирования пуста.")
-
-    await message.answer(text=posts[0].caption, reply_markup=edit_queue_keyboard(posts[0]))

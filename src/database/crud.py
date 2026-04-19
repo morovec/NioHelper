@@ -176,6 +176,12 @@ async def delete_post(session: AsyncSession, post_id: int) -> bool:
     await session.commit()
     return result.rowcount > 0
 
+async def get_media_by_post_id(session: AsyncSession, post_id: int) -> List[PostMedia]:
+    result = await session.execute(
+        select(PostMedia).where(PostMedia.post_id == post_id).order_by(PostMedia.sort_order)
+    )
+    return list(result.scalars().all())
+
 
 async def get_media_by_post_id(session: AsyncSession, post_id: int) -> List[PostMedia]:
     result = await session.execute(
