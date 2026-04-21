@@ -59,7 +59,7 @@ async def handle_posting_data(posting_data: str) -> None:
         try:
             post_id = await process_single_post(post_str)
             
-            log_msg = f"Пост успешно добавлен в базу данных! ID: {post_id}"
+            log_msg = f"Пост ...{post_str[-10:-2]} Добавлен! ID: {post_id}"
             await posting_notify.add_success_post(log_msg)
             
             time_idx += 1
@@ -371,4 +371,4 @@ async def get_media_posts(message: Message):
         post = random.choice(edit_posts)
         media_list = await crud.get_media_by_post_id(session, post.id)
         text = f"Пост ID: {post.id}\n\n{post.caption}"
-        await send_media_with_caption(media_list, message, text, post_ready_keyboard(post.id))
+        await send_media_with_caption(media_list, message, text, post_edit_keyboard(post.id))
