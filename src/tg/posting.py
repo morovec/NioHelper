@@ -160,9 +160,12 @@ async def publish_post():
 
         await crud.delete_post(session, post.id)
 
+# ==========================================================================================
+# ========== Post Edit text ==============================
+# ==========================================================================================
 
-# ========== Post inteructions ==========
-from src.tg.keyboards.posts import post_edit_keyboard, post_edit_keyboard_without_delete
+
+from src.tg.keyboards.posts import post_edit_keyboard, post_edit_keyboard_without_delete, post_translate_keyboard
 
 async def edit_post_caption(post_id: int, new_caption: str) -> bool:
     async with async_session() as session:
@@ -199,6 +202,7 @@ async def edit_post_caption_full(post_id: int, new_caption: str) -> bool:
 
 @post_router.message(Command("get_random_edit_post"), F.chat.id == settings.admin_chat_id)
 async def get_random_edit_post(message: Message):
+    await message.delete()
     await asyncio.sleep(0.5)  # Небольшая пауза, чтобы избежать проблем с API
     async with async_session() as session:
         posts = await crud.get_posts(session)
@@ -210,7 +214,7 @@ async def get_random_edit_post(message: Message):
         post = random.choice(edit_posts)
         media_list = await crud.get_media_by_post_id(session, post.id)
         text = f"Пост ID: {post.id}\n\n{post.caption}"
-        await send_media_with_caption(post, media_list, message, text)
+        await send_media_with_caption(media_list, message, text, post_edit_keyboard(post.id))
 
 async def get_edit_post_by_id(message: Message, post_id: int):
     await asyncio.sleep(0.5)  # Небольшая пауза, чтобы избежать проблем с API
@@ -221,15 +225,15 @@ async def get_edit_post_by_id(message: Message, post_id: int):
             return
         media_list = await crud.get_media_by_post_id(session, post.id)
         text = f"Пост ID: {post.id}\n\n{post.caption}"
-        await send_media_with_caption(post, media_list, message, text)
+        await send_media_with_caption(media_list, message, text, post_edit_keyboard(post.id))
 
-async def send_media_with_caption(post: Post, media_list: list[PostMedia], message: Message, text: str):
+async def send_media_with_caption(media_list: list[PostMedia], message: Message, text: str, keyboard):
     if len(media_list) == 1:
         item = media_list[0]
         if item.media_type == "photo":
-            await message.answer_photo(item.telegram_file_id, caption=text, reply_markup=post_edit_keyboard(post.id))
+            await message.answer_photo(item.telegram_file_id, caption=text, reply_markup=keyboard)
         elif item.media_type == "video":
-            await message.answer_video(item.telegram_file_id, caption=text, reply_markup=post_edit_keyboard(post.id))
+            await message.answer_video(item.telegram_file_id, caption=text, reply_markup=keyboard)
     else:
         album = []
         for i, item in enumerate(media_list):
@@ -244,12 +248,11 @@ async def send_media_with_caption(post: Post, media_list: list[PostMedia], messa
                     caption=text if i == 0 else None
                 ))
         await message.answer_media_group(album)
-        await message.answer("Клавиатура для альбома", reply_markup=post_edit_keyboard(post.id))
+        await message.answer("Клавиатура для альбома", reply_markup=keyboard)
 
 
 @post_router.callback_query(F.data.startswith("get_random_edit_post"), F.message.chat.id == settings.admin_chat_id)
 async def get_random_edit_post_callback(callback: CallbackQuery):
-    await callback.message.delete()
     await get_random_edit_post(callback.message)
 
 

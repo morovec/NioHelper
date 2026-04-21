@@ -1,17 +1,14 @@
 from aiogram import Router, F
-from aiogram.types import Message
+from aiogram.types import CallbackQuery, Message
 from aiogram.filters import Command
 
-from config import settings, vk_user as vk, tg_bot as tg
+from config import settings, tg_bot as tg
+from database import crud
 from src.tg.notify import tg_logger
 
 from src.resources import messages, path_to_replacer
-from src.handlers import file_save_from_url
 
 import traceback
-
-from src.vk.media import media_uploader
-from vkbottle_types.codegen.objects import WallWallpostFull
 
 from src.types import ImgReplace
 
@@ -27,8 +24,8 @@ class MediaReplacer:
             text += str(img.position)
         return text
 
-    async def compare_imgs(self, old_list: list[str], copyright_url: str) -> list[str]:
-        new_list = await self.create_new_list(len(old_list), copyright_url)
+    async def compare_imgs(self, old_list: list[str]) -> list[str]:
+        new_list = await self.create_new_list(len(old_list))
         res = []
         for i, img in enumerate(new_list):
             if img:
@@ -38,12 +35,10 @@ class MediaReplacer:
         self.imgs = []
         return res
     
-    async def create_new_list(self, amount: int, post_url: str) -> list[str]:
+    async def create_new_list(self, amount: int) -> list[str]:
         new_list = [""] * amount
         for img in self.imgs:
-            vk_attachment = await media_uploader.upload_media([img.media_path], post_url)
-            new_list[img.position-1] = vk_attachment[0]
-        
+            new_list[img.position-1] = img.media_id
         return new_list
 
     def add_new_img(self, img: ImgReplace):
@@ -57,32 +52,17 @@ media_replacer = MediaReplacer()
 async def replace_images(post_id: str) -> None:
     try:
         # Получаем текущие вложения
-        posts = await vk.api.wall.get_by_id(posts=post_id)
-        
-        post = posts.items[0]
-        attachments = post.attachments
+        attachments = await crud.get_media_by_post_id(post_id=post_id)
 
         if not attachments:
             await tg_logger.send_log("В посте нет изображений")
             return False
         
-        old_imgs = []
-        copyright_url = ""
-        for i, attachment in enumerate(attachments):
-            photo = attachment.photo
-            attach = f"photo{photo.owner_id}_{photo.id}"
-            if photo.access_key: attach += f"_{photo.access_key}"
-            old_imgs.append(attach)
+        new_attachments = await media_replacer.compare_imgs(attachments)
 
-            if not copyright_url:
-                copyright_url = attachment.photo.text.split()[-1]
-
-        new_attachments = await media_replacer.compare_imgs(old_imgs, copyright_url)
-        await vk.api.wall.edit(post_id=post.id,
-                               owner_id=post.owner_id,
-                               attachments=new_attachments,
-                               message=post.text,
-                               publish_date=post.date)
+        # Обновляем вложения в базе данных
+        await crud.update_post_media(post_id=post_id, new_media_ids=new_attachments)
+        
         return True
             
     except:
@@ -90,18 +70,13 @@ async def replace_images(post_id: str) -> None:
         return 
     
 @replace_router.message(Command("add_img"), F.chat.id == settings.admin_chat_id)
-async def add_img(message: Message):
-    parts = message.caption.split()
-
-    if len(parts) < 2:
-        position = "1"
-    else:
-        position = parts[1]
+async def add_img(callback: CallbackQuery):
+    position = callback.message.caption
 
     path = path_to_replacer + position + ".png"
 
     try:
-        file_id = message.document.file_id
+        file_id = callback.message.document.file_id
         file = await tg.get_file(file_id)
 
         await tg.download_file(file.file_path, path)
@@ -113,7 +88,7 @@ async def add_img(message: Message):
 
     new_img = ImgReplace(media_path=path, position=int(position))
     media_replacer.add_new_img(new_img)
-    await message.answer("Добавил фото!")
+    await callback.message.answer("Добавил фото!")
 
 @replace_router.message(Command("clear_imgs"), F.chat.id == settings.admin_chat_id)
 async def clear_imgs(message: Message):
@@ -134,10 +109,10 @@ async def handle_replace(message: Message):
     try:
         parts = message.text.split()
         if len(parts) < 2:
-            await message.answer("Укажите url поста")
+            await message.answer("Укажите ID поста")
             return
         
-        post_id = parts[1].split("wall")[1]
+        post_id = parts[1]
         
         if await replace_images(post_id):
             await message.answer("Замена изображения завершена")

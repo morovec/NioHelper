@@ -2,5 +2,5 @@ from dataclasses import dataclass
 
 @dataclass
 class ImgReplace:
-    media_path: list
+    media_id: str
     position: str

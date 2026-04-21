@@ -56,6 +56,8 @@ class Post(Base):
         order_by="PostMedia.sort_order"
     )
 
+    translation: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
     __table_args__ = (
         Index("idx_post_status", "status"),
     )

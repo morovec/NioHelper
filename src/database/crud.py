@@ -182,9 +182,23 @@ async def get_media_by_post_id(session: AsyncSession, post_id: int) -> List[Post
     )
     return list(result.scalars().all())
 
+async def update_post_media(session: AsyncSession, post_id: int, new_media_ids: List[str]) -> bool:
+    # Получаем текущие медиа для поста
+    current_media = await get_media_by_post_id(session, post_id)
 
-async def get_media_by_post_id(session: AsyncSession, post_id: int) -> List[PostMedia]:
-    result = await session.execute(
-        select(PostMedia).where(PostMedia.post_id == post_id).order_by(PostMedia.sort_order)
-    )
-    return result.scalars().all()
+    # Удаляем все текущие медиа
+    for media in current_media:
+        await session.delete(media)
+    
+    # Добавляем новые медиа
+    for index, media_id in enumerate(new_media_ids):
+        new_media = PostMedia(
+            post_id=post_id,
+            media_type="photo",  # Предполагаем, что это фото
+            telegram_file_id=media_id,
+            sort_order=index
+        )
+        session.add(new_media)
+
+    await session.commit()
+    return True
