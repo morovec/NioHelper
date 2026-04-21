@@ -44,7 +44,7 @@ class PostingNotify:
         await asyncio.sleep(1)
         if "Ошибки" in self.message:
             split_message = self.message.split("\n\n")
-            self.message = split_message[0] + post_msg + "\n\n" + split_message[1]
+            self.message = split_message[0] + "\n" + post_msg + "\n\n" + split_message[1]
         else:
             self.message += "\n" + post_msg
         await self.edit_message(self.message)
