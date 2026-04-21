@@ -1,7 +1,6 @@
-from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import select, update, delete, func
+from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 

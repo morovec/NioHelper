@@ -201,7 +201,7 @@ async def edit_post_caption_full(post_id: int, new_caption: str) -> bool:
         await session.commit()
         return True
 
-@post_router.message(Command("get_random_edit_post"), F.chat.id == settings.admin_chat_id)
+@post_router.message(Command("edit_post"), F.chat.id == settings.admin_chat_id)
 async def get_random_edit_post(message: Message):
     await message.delete()
     await asyncio.sleep(0.5)  # Небольшая пауза, чтобы избежать проблем с API
@@ -218,7 +218,7 @@ async def get_random_edit_post(message: Message):
         await send_media_with_caption(media_list, message, text, post_edit_keyboard(post.id))
 
 
-@post_router.message(Command("get_random_ready_post"), F.chat.id == settings.admin_chat_id)
+@post_router.message(Command("ready_post"), F.chat.id == settings.admin_chat_id)
 async def get_random_ready_post(message: Message):
     await message.delete()
     await asyncio.sleep(0.5)  # Небольшая пауза, чтобы избежать проблем с API
@@ -235,7 +235,7 @@ async def get_random_ready_post(message: Message):
         await send_media_with_caption(media_list, message, text, post_ready_keyboard(post.id))
 
 
-@post_router.message(Command("get_post_by_id"), F.chat.id == settings.admin_chat_id)
+@post_router.message(Command("post_by_id"), F.chat.id == settings.admin_chat_id)
 async def get_post_by_id(message: Message):
     await message.delete()
     post_id = message.text.split()[1]
@@ -357,7 +357,7 @@ async def not_ready_callback(callback: CallbackQuery):
                                         )
     
 
-@post_router.message(Command("get_media_posts"), F.chat.id == settings.admin_chat_id)
+@post_router.message(Command("media_post"), F.chat.id == settings.admin_chat_id)
 async def get_media_posts(message: Message):
     await message.delete()
     await asyncio.sleep(0.5)  # Небольшая пауза, чтобы избежать проблем с API

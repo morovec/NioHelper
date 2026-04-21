@@ -16,6 +16,7 @@ __pycache__/
 .venv/
 
 bot.db
+.vscode
 
 src/media_files/for_posts/*
 src/media_files/replacer/*
