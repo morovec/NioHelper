@@ -13,9 +13,8 @@ from src.tg.media import media_uploader, Media
 
 from src.database import crud
 from src.database.db import async_session
-from src.database.models import PostMedia
+from src.database.models import Post, PostMedia
 from src.types.enums import PostStatus
-from src.tg.keyboards.posts import post_status_keyboard, queue_keyboard
 
 from .notify import posting_notify, tg_logger
 from src.handlers.scrapers import get_post_from_url
@@ -163,7 +162,7 @@ async def publish_post():
 
 
 # ========== Post inteructions ==========
-from src.tg.keyboards.posts import edit_queue_keyboard
+from src.tg.keyboards.posts import post_edit_keyboard, post_edit_keyboard_without_delete
 
 async def edit_post_caption(post_id: int, new_caption: str) -> bool:
     async with async_session() as session:
@@ -173,9 +172,9 @@ async def edit_post_caption(post_id: int, new_caption: str) -> bool:
         
         caption = post.caption.split("\n\n")
         if len(caption) == 2:
-            new_caption = new_caption + "\n\n" + caption[0] + caption[1]
+            new_caption = new_caption + "\n\n" + caption[0] + "\n\n" + caption[1]
         else:
-            new_caption = new_caption + "\n\n" + caption[1] + caption[2]
+            new_caption = new_caption + "\n\n" + caption[1] + "\n\n" + caption[2]
 
         post.caption = new_caption
         if post.status == PostStatus.NEEDS_TEXT_EDIT:
@@ -185,3 +184,107 @@ async def edit_post_caption(post_id: int, new_caption: str) -> bool:
         session.add(post)
         await session.commit()
         return True
+
+
+async def edit_post_caption_full(post_id: int, new_caption: str) -> bool:
+    async with async_session() as session:
+        post = await crud.get_post(session, post_id)
+        if not post:
+            return False
+        
+        post.caption = new_caption
+        session.add(post)
+        await session.commit()
+        return True
+
+@post_router.message(Command("get_random_edit_post"), F.chat.id == settings.admin_chat_id)
+async def get_random_edit_post(message: Message):
+    await asyncio.sleep(0.5)  # Небольшая пауза, чтобы избежать проблем с API
+    async with async_session() as session:
+        posts = await crud.get_posts(session)
+        edit_posts = [p for p in posts if p.status in (PostStatus.NEEDS_TEXT_EDIT, PostStatus.NEEDS_EDIT_AND_TRANSLATE)]
+        if not edit_posts:
+            await message.answer("Нет постов для редактирования.")
+            return
+        
+        post = random.choice(edit_posts)
+        media_list = await crud.get_media_by_post_id(session, post.id)
+        text = f"Пост ID: {post.id}\n\n{post.caption}"
+        await send_media_with_caption(post, media_list, message, text)
+
+async def get_edit_post_by_id(message: Message, post_id: int):
+    await asyncio.sleep(0.5)  # Небольшая пауза, чтобы избежать проблем с API
+    async with async_session() as session:
+        post = await crud.get_post(session, post_id)
+        if not post:
+            await message.answer("Пост не найден.")
+            return
+        media_list = await crud.get_media_by_post_id(session, post.id)
+        text = f"Пост ID: {post.id}\n\n{post.caption}"
+        await send_media_with_caption(post, media_list, message, text)
+
+async def send_media_with_caption(post: Post, media_list: list[PostMedia], message: Message, text: str):
+    if len(media_list) == 1:
+        item = media_list[0]
+        if item.media_type == "photo":
+            await message.answer_photo(item.telegram_file_id, caption=text, reply_markup=post_edit_keyboard(post.id))
+        elif item.media_type == "video":
+            await message.answer_video(item.telegram_file_id, caption=text, reply_markup=post_edit_keyboard(post.id))
+    else:
+        album = []
+        for i, item in enumerate(media_list):
+            if item.media_type == "photo":
+                album.append(InputMediaPhoto(
+                    media=item.telegram_file_id,
+                    caption=text if i == 0 else None
+                ))
+            elif item.media_type == "video":
+                album.append(InputMediaVideo(
+                    media=item.telegram_file_id,
+                    caption=text if i == 0 else None
+                ))
+        await message.answer_media_group(album)
+        await message.answer("Клавиатура для альбома", reply_markup=post_edit_keyboard(post.id))
+
+
+@post_router.callback_query(F.data.startswith("get_random_edit_post"), F.message.chat.id == settings.admin_chat_id)
+async def get_random_edit_post_callback(callback: CallbackQuery):
+    await callback.message.delete()
+    await get_random_edit_post(callback.message)
+
+
+@post_router.callback_query(F.data.startswith("edit_text"), F.message.chat.id == settings.admin_chat_id)
+async def edit_text_callback(callback: CallbackQuery, state: FSMContext):
+    post_id = int(callback.data.split(":")[1])
+    await state.update_data(post_id=post_id)
+    await callback.message.answer("Введите новый текст для поста:")
+    await state.set_state(EditPostStates.waiting_for_text)
+
+
+@post_router.message(EditPostStates.waiting_for_text, F.chat.id == settings.admin_chat_id)
+async def process_new_text(message: Message, state: FSMContext):
+    data = await state.get_data()
+    post_id = data.get("post_id")
+    new_text = message.text
+    success = await edit_post_caption(post_id, new_text)
+    if success:
+        await get_edit_post_by_id(message, post_id)
+    else:
+        await message.answer("Ошибка при обновлении текста поста. Ничего не произошло.")
+        await get_edit_post_by_id(message, post_id)
+    await state.clear()
+
+
+@post_router.callback_query(F.data.startswith("delete_post"), F.message.chat.id == settings.admin_chat_id)
+async def delete_post_callback(callback: CallbackQuery):
+    post_id = int(callback.data.split(":")[1])
+    async with async_session() as session:
+        await crud.delete_post(session, post_id)
+    await callback.message.edit_caption(caption=f"{callback.message.caption}\n\nПост успешно удален!",
+                                        reply_markup=post_edit_keyboard_without_delete(post_id)
+                                        )
+
+
+@post_router.callback_query(F.data.startswith("hide"), F.message.chat.id == settings.admin_chat_id)
+async def hide_post_callback(callback: CallbackQuery):
+    await callback.message.delete()
