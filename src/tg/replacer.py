@@ -1,16 +1,19 @@
 from aiogram import Router, F
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import Message
 from aiogram.filters import Command
 
-from config import settings, tg_bot as tg
-from database import crud
+from config import settings
+from src.database.models import PostMedia
+from src.database import crud
+from src.database.db import async_session
 from src.tg.notify import tg_logger
 
-from src.resources import messages, path_to_replacer
+from src.resources import messages
 
 import traceback
 
 from src.types import ImgReplace
+from src.types.enums import PostStatus
 
 replace_router = Router(name=__name__)
 
@@ -24,14 +27,14 @@ class MediaReplacer:
             text += str(img.position)
         return text
 
-    async def compare_imgs(self, old_list: list[str]) -> list[str]:
+    async def compare_imgs(self, old_list: list[PostMedia]) -> list[str]:
         new_list = await self.create_new_list(len(old_list))
         res = []
         for i, img in enumerate(new_list):
             if img:
                 res.append(img)
             else:
-                res.append(old_list[i])
+                res.append(old_list[i].telegram_file_id)
         self.imgs = []
         return res
     
@@ -52,43 +55,39 @@ media_replacer = MediaReplacer()
 async def replace_images(post_id: str) -> None:
     try:
         # Получаем текущие вложения
-        attachments = await crud.get_media_by_post_id(post_id=post_id)
+        async with async_session() as session:
+            attachments = await crud.get_media_by_post_id(session=session, post_id=post_id)
 
-        if not attachments:
-            await tg_logger.send_log("В посте нет изображений")
-            return False
-        
-        new_attachments = await media_replacer.compare_imgs(attachments)
-
-        # Обновляем вложения в базе данных
-        await crud.update_post_media(post_id=post_id, new_media_ids=new_attachments)
-        
-        return True
+            if not attachments:
+                await tg_logger.send_log("В посте нет изображений")
+                return False
             
-    except:
-        await tg_logger.send_log(f"Ошибка при замене изображений: {traceback.format_exc()}")
+            new_attachments = await media_replacer.compare_imgs(attachments)
+
+            # Обновляем вложения в базе данных
+            await crud.update_post_media(session=session, post_id=post_id, new_media_ids=new_attachments)
+            await crud.update_post_status(session=session, post_id=post_id, status=PostStatus.READY)
+            
+            return True
+            
+    except Exception as e: 
+        await tg_logger.send_log(f"Ошибка при замене изображений: {e}")
         return 
     
 @replace_router.message(Command("add_img"), F.chat.id == settings.admin_chat_id)
-async def add_img(callback: CallbackQuery):
-    position = callback.message.caption
+async def add_img(message: Message):
+    parts = message.caption.split()
+    if len(parts) < 2:
+        position = 1
+    else:
+        position = parts[1]
 
-    path = path_to_replacer + position + ".png"
-
-    try:
-        file_id = callback.message.document.file_id
-        file = await tg.get_file(file_id)
-
-        await tg.download_file(file.file_path, path)
-
-    except Exception as ex:
-        await tg_logger.send_log(f"Не скачалась фоточка {ex}")
-        return
+    file_id = message.photo[-1].file_id
 
 
-    new_img = ImgReplace(media_path=path, position=int(position))
+    new_img = ImgReplace(media_id=file_id, position=int(position))
     media_replacer.add_new_img(new_img)
-    await callback.message.answer("Добавил фото!")
+    await message.answer("Добавил фото!")
 
 @replace_router.message(Command("clear_imgs"), F.chat.id == settings.admin_chat_id)
 async def clear_imgs(message: Message):
@@ -117,5 +116,5 @@ async def handle_replace(message: Message):
         if await replace_images(post_id):
             await message.answer("Замена изображения завершена")
         
-    except:
-        await tg_logger.send_log(f"Ошибка: {traceback.format_exc()}")
+    except Exception as e:
+        await tg_logger.send_log(f"Ошибка: {e}")

@@ -3,6 +3,9 @@ from config import settings, tg_bot as tg
 from aiogram.types import FSInputFile
 import asyncio
 
+from src.database import crud
+from src.database.db import async_session
+
 
 class PostingNotify:
     def __init__(self):
@@ -11,10 +14,14 @@ class PostingNotify:
         self.count: int = 0
 
     async def msg_to_translation(self, paths: list[str]):
-        for path in paths:
-            await tg.send_document(chat_id=settings.admin_chat_id,
-                                   document=FSInputFile(path),
-                                   message_thread_id=settings.telegram.translation_thread_id)
+        async with async_session() as session:
+            posts = await crud.get_posts(session=session)
+            post_id = posts[-1].id + 1 if posts else 1
+            for i, path in enumerate(paths):
+                await tg.send_document(chat_id=settings.admin_chat_id,
+                                       document=FSInputFile(path),
+                                       message_thread_id=settings.telegram.translation_thread_id,
+                                       caption=f"Пост {post_id} - изображение {i+1}")
 
     async def msg_to_posting(self, text):
         self.message = text
@@ -34,13 +41,11 @@ class PostingNotify:
               )
             
     async def add_success_post(self, post_msg):
-        self.count += 1
-        msg = f"\n{post_msg} {self.count}"
         if "Ошибки" in self.message:
             split_message = self.message.split("\n\n")
-            self.message = split_message[0] + msg + "\n\n" + split_message[1]
+            self.message = split_message[0] + post_msg + "\n\n" + split_message[1]
         else:
-            self.message += msg
+            self.message += post_msg
         await self.edit_message(self.message)
     
     async def add_error_post(self, post):

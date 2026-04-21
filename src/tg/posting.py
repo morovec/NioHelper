@@ -57,9 +57,9 @@ async def handle_posting_data(posting_data: str) -> None:
     time_idx = 0
     for post_str in posting_data:
         try:
-            await process_single_post(post_str)
+            post_id = await process_single_post(post_str)
             
-            log_msg = f"Пост успешно добавлен в базу данных!"
+            log_msg = f"Пост успешно добавлен в базу данных! ID: {post_id}"
             await posting_notify.add_success_post(log_msg)
             
             time_idx += 1
@@ -95,6 +95,7 @@ async def process_single_post(post_str: str) -> None:
                 telegram_file_id=m.file_id,
                 sort_order=i
             )
+        return create_post_result.id
 
 
 def format_message(author: str, post_url: str, tags: str) -> str:
@@ -165,7 +166,7 @@ async def publish_post():
 # ==========================================================================================
 
 
-from src.tg.keyboards.posts import post_edit_keyboard, post_edit_keyboard_without_delete, post_translate_keyboard
+from src.tg.keyboards.posts import post_edit_keyboard, post_edit_keyboard_without_delete, post_ready_keyboard, post_translate_keyboard
 
 async def edit_post_caption(post_id: int, new_caption: str) -> bool:
     async with async_session() as session:
@@ -183,7 +184,7 @@ async def edit_post_caption(post_id: int, new_caption: str) -> bool:
         if post.status == PostStatus.NEEDS_TEXT_EDIT:
             post.status = PostStatus.READY
         elif post.status == PostStatus.NEEDS_EDIT_AND_TRANSLATE:
-            post.status = PostStatus.NEEDS_TRANSLATE
+            post.status = PostStatus.NEEDS_IMAGE_TRANSLATE
         session.add(post)
         await session.commit()
         return True
@@ -216,6 +217,38 @@ async def get_random_edit_post(message: Message):
         text = f"Пост ID: {post.id}\n\n{post.caption}"
         await send_media_with_caption(media_list, message, text, post_edit_keyboard(post.id))
 
+
+@post_router.message(Command("get_random_ready_post"), F.chat.id == settings.admin_chat_id)
+async def get_random_ready_post(message: Message):
+    await message.delete()
+    await asyncio.sleep(0.5)  # Небольшая пауза, чтобы избежать проблем с API
+    async with async_session() as session:
+        posts = await crud.get_posts(session)
+        edit_posts = [p for p in posts if p.status in (PostStatus.READY)]
+        if not edit_posts:
+            await message.answer("Нет постов.")
+            return
+        
+        post = random.choice(edit_posts)
+        media_list = await crud.get_media_by_post_id(session, post.id)
+        text = f"Пост ID: {post.id}\n\n{post.caption}"
+        await send_media_with_caption(media_list, message, text, post_ready_keyboard(post.id))
+
+
+@post_router.message(Command("get_post_by_id"), F.chat.id == settings.admin_chat_id)
+async def get_post_by_id(message: Message):
+    await message.delete()
+    post_id = message.text.split()[1]
+    await asyncio.sleep(0.5)  # Небольшая пауза, чтобы избежать проблем с API
+    async with async_session() as session:
+        post = await crud.get_post(session, post_id)
+        if not post:
+            await message.answer("Пост не найден.")
+            return
+        media_list = await crud.get_media_by_post_id(session, post.id)
+        text = f"Пост ID: {post.id}\n\n{post.caption}"
+        await send_media_with_caption(media_list, message, text, post_edit_keyboard(post.id))
+
 async def get_edit_post_by_id(message: Message, post_id: int):
     await asyncio.sleep(0.5)  # Небольшая пауза, чтобы избежать проблем с API
     async with async_session() as session:
@@ -226,6 +259,22 @@ async def get_edit_post_by_id(message: Message, post_id: int):
         media_list = await crud.get_media_by_post_id(session, post.id)
         text = f"Пост ID: {post.id}\n\n{post.caption}"
         await send_media_with_caption(media_list, message, text, post_edit_keyboard(post.id))
+
+
+@post_router.callback_query(F.data.startswith("ready_for_posting"), F.message.chat.id == settings.admin_chat_id)
+async def ready_for_posting_callback(callback: CallbackQuery):
+    post_id = int(callback.data.split(":")[1])
+    async with async_session() as session:
+        post = await crud.get_post(session, post_id)
+        if not post:
+            await callback.message.answer("Пост не найден.")
+            return
+        post.status = PostStatus.READY
+        session.add(post)
+        await session.commit()
+    await callback.message.edit_caption(caption=f"{callback.message.caption}\n\nПост готов к публикации!",
+                                        reply_markup=post_edit_keyboard_without_delete(post_id)
+                                        )
 
 async def send_media_with_caption(media_list: list[PostMedia], message: Message, text: str, keyboard):
     if len(media_list) == 1:
@@ -291,3 +340,35 @@ async def delete_post_callback(callback: CallbackQuery):
 @post_router.callback_query(F.data.startswith("hide"), F.message.chat.id == settings.admin_chat_id)
 async def hide_post_callback(callback: CallbackQuery):
     await callback.message.delete()
+
+@post_router.callback_query(F.data.startswith("not_ready"), F.message.chat.id == settings.admin_chat_id)
+async def not_ready_callback(callback: CallbackQuery):
+    post_id = int(callback.data.split(":")[1])
+    async with async_session() as session:
+        post = await crud.get_post(session, post_id)
+        if not post:
+            await callback.message.answer("Пост не найден.")
+            return
+        post.status = PostStatus.NEEDS_TEXT_EDIT
+        session.add(post)
+        await session.commit()
+    await callback.message.edit_caption(caption=f"{callback.message.caption}\n\nПост снова требует редактирования текста!",
+                                        reply_markup=post_edit_keyboard_without_delete(post_id)
+                                        )
+    
+
+@post_router.message(Command("get_media_posts"), F.chat.id == settings.admin_chat_id)
+async def get_media_posts(message: Message):
+    await message.delete()
+    await asyncio.sleep(0.5)  # Небольшая пауза, чтобы избежать проблем с API
+    async with async_session() as session:
+        posts = await crud.get_posts(session)
+        edit_posts = [p for p in posts if p.status in (PostStatus.NEEDS_IMAGE_TRANSLATE, PostStatus.NEEDS_EDIT_AND_TRANSLATE)]
+        if not edit_posts:
+            await message.answer("Нет постов для перевода изображений.")
+            return
+        
+        post = random.choice(edit_posts)
+        media_list = await crud.get_media_by_post_id(session, post.id)
+        text = f"Пост ID: {post.id}\n\n{post.caption}"
+        await send_media_with_caption(media_list, message, text, post_ready_keyboard(post.id))
