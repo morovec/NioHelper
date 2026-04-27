@@ -57,6 +57,7 @@ async def handle_posting_data(posting_data: str) -> None:
     time_idx = 0
     for post_str in posting_data:
         try:
+            await asyncio.sleep(0.5)  # Небольшая пауза между обработкой постов, чтобы избежать проблем с API
             post_id = await process_single_post(post_str)
             
             log_msg = f"Пост ...{post_str[-10:-2]} Добавлен! ID: {post_id}"
@@ -214,7 +215,7 @@ async def get_random_edit_post(message: Message):
         
         post = random.choice(edit_posts)
         media_list = await crud.get_media_by_post_id(session, post.id)
-        text = f"Пост ID: {post.id}\n\n{post.caption}"
+        text = f"Пост ID: {post.id} Статус: {post.status}\n\n{post.caption}"
         await send_media_with_caption(media_list, message, text, post_edit_keyboard(post.id))
 
 
@@ -231,7 +232,7 @@ async def get_random_ready_post(message: Message):
         
         post = random.choice(edit_posts)
         media_list = await crud.get_media_by_post_id(session, post.id)
-        text = f"Пост ID: {post.id}\n\n{post.caption}"
+        text = f"Пост ID: {post.id} Статус: {post.status}\n\n{post.caption}"
         await send_media_with_caption(media_list, message, text, post_ready_keyboard(post.id))
 
 
@@ -246,7 +247,7 @@ async def get_post_by_id(message: Message):
             await message.answer("Пост не найден.")
             return
         media_list = await crud.get_media_by_post_id(session, post.id)
-        text = f"Пост ID: {post.id}\n\n{post.caption}"
+        text = f"Пост ID: {post.id} Статус: {post.status}\n\n{post.caption}"
         await send_media_with_caption(media_list, message, text, post_edit_keyboard(post.id))
 
 async def get_edit_post_by_id(message: Message, post_id: int):
@@ -257,7 +258,7 @@ async def get_edit_post_by_id(message: Message, post_id: int):
             await message.answer("Пост не найден.")
             return
         media_list = await crud.get_media_by_post_id(session, post.id)
-        text = f"Пост ID: {post.id}\n\n{post.caption}"
+        text = f"Пост ID: {post.id} Статус: {post.status}\n\n{post.caption}"
         await send_media_with_caption(media_list, message, text, post_edit_keyboard(post.id))
 
 
@@ -296,6 +297,7 @@ async def send_media_with_caption(media_list: list[PostMedia], message: Message,
                     media=item.telegram_file_id,
                     caption=text if i == 0 else None
                 ))
+        
         await message.answer_media_group(album)
         await message.answer("Клавиатура для альбома", reply_markup=keyboard)
 
@@ -370,5 +372,35 @@ async def get_media_posts(message: Message):
         
         post = random.choice(edit_posts)
         media_list = await crud.get_media_by_post_id(session, post.id)
-        text = f"Пост ID: {post.id}\n\n{post.caption}"
+        text = f"Пост ID: {post.id} Статус: {post.status}\n\n{post.caption}"
         await send_media_with_caption(media_list, message, text, post_edit_keyboard(post.id))
+
+@post_router.message(Command("delete_post"), F.chat.id == settings.admin_chat_id)
+async def delete_post(message: Message):
+    post_id = int(message.text.split()[1])
+    async with async_session() as session:
+        await crud.delete_post(session, post_id)
+    await message.answer("Пост успешно удален!")
+
+# выводит посты к которым не привязаны id медиа файлов для проверки, что удаление работает корректно
+@post_router.message(Command("check_posts"), F.chat.id == settings.admin_chat_id)
+async def check_posts(message: Message):
+    ans = ""
+    async with async_session() as session:
+        posts = await crud.get_posts(session)
+        for post in posts:
+            media_list = await crud.get_media_by_post_id(session, post.id)
+            if not media_list:
+                ans += f"Пост ID {post.id} не имеет привязанных медиа файлов. Caption: {post.caption}\n"
+    if ans == "":
+        ans = "Всё в порядке"
+    await message.answer(ans)
+
+@post_router.message(Command("delete_posts"), F.chat.id == settings.admin_chat_id)
+async def delete_posts(message: Message):
+    post_ids = message.text.split()[1:]
+    for post_id in post_ids:
+        async with async_session() as session:
+            await crud.delete_post(session, post_id)
+    await message.answer("Посты успешно удалены!")
+

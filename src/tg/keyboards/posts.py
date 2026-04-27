@@ -10,9 +10,6 @@ def post_edit_keyboard(post_id: int) -> InlineKeyboardMarkup:
         InlineKeyboardButton(text="Взять другой пост", callback_data=f"get_random_edit_post", style="primary")
     )
     builder.row(
-        InlineKeyboardButton(text="Готово", callback_data=f"ready_for_posting:{post_id}", style="success")
-    )
-    builder.row(
         InlineKeyboardButton(text="Скрыть", callback_data=f"hide")
     )
     builder.row(
