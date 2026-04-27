@@ -1,8 +1,7 @@
 # keyboards/inline.py
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from src.types.enums import PostStatus
 
 def post_edit_keyboard(post_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
