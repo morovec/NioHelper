@@ -20,7 +20,12 @@ def get_fa_post(url: str) -> PostParsed:
         soup = BeautifulSoup(response, 'lxml')
         text = soup.find("meta", property="og:title", content=True).attrs["content"].split(" by ")
         author = text[-1]
-        link = "https:" + soup.find("div", {"class": "download"}).find("a")["href"]
+        link = soup.find("div", {"class": "download"})
+        if link == None:
+            link = "https:" + soup.find("img", {"id": "submissionImg"})["src"]
+        else:
+            link = "https:" + link.find("a")["href"]
+        
         
         if ".gif" in link:
             path = f"{path_to_media}.gif"

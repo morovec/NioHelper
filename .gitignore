@@ -17,6 +17,7 @@ __pycache__/
 
 bot.db
 .vscode
+test.py
 
 src/media_files/for_posts/*
 src/media_files/replacer/*
