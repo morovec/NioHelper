@@ -327,7 +327,8 @@ async def delete_post_callback(callback: CallbackQuery):
     post_id = int(callback.data.split(":")[1])
     async with async_session() as session:
         await crud.delete_post(session, post_id)
-    await callback.message.edit_caption(caption=f"{callback.message.caption}\n\nПост успешно удален!")
+    await callback.message.edit_caption(caption=f"{callback.message.caption}\n\nПост успешно удален!",
+                                        reply_markup=edit_post_only_keyboard(post_id))
 
 @post_router.callback_query(F.data.startswith("not_ready"), F.message.chat.id == settings.admin_chat_id)
 async def not_ready_callback(callback: CallbackQuery):
@@ -341,7 +342,7 @@ async def not_ready_callback(callback: CallbackQuery):
         session.add(post)
         await session.commit()
     await callback.message.edit_caption(caption=f"{callback.message.caption}\n\nПост снова требует редактирования текста!",
-                                        reply_markup=edit_post_only_keyboard(post_id)
+                                        reply_markup=post_edit_keyboard(post_id)
                                         )
     
 
