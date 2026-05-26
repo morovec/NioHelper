@@ -49,6 +49,6 @@ def post_menu_keyboard() -> InlineKeyboardMarkup:
         InlineKeyboardButton(text="Пост без перевода", callback_data="no_translate_post", style="primary")
     )
     builder.row(
-        InlineKeyboardButton(text="Готовые посты", callback_data="ready_posts", style="success")
+        InlineKeyboardButton(text="Готовый пост", callback_data="ready_post", style="success")
     )
     return builder.as_markup(resize_keyboard=True)

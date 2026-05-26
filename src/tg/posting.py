@@ -210,6 +210,7 @@ async def edit_post_caption_full(post_id: int, new_caption: str) -> bool:
 async def make_post_text(post: Post) -> str:
     return f"Пост ID: {post.id}\nСтатус: {post.status}\n\n{post.caption}"
 
+
 @post_router.callback_query(F.data.startswith("no_text_post"), F.message.chat.id == settings.admin_chat_id)
 async def get_random_edit_post(callback: CallbackQuery):
     await asyncio.sleep(0.5)
@@ -227,6 +228,33 @@ async def get_random_edit_post(callback: CallbackQuery):
             await send_media_with_caption(media_list, callback.message, text, post_edit_keyboard(post.id))
         except Exception as e:
             await tg_logger.send_log(f"Ошибка при отправке поста для редактирования ID {post.id}:\n{e}")
+
+
+@post_router.callback_query(F.data.startswith("edit_text"), F.message.chat.id == settings.admin_chat_id)
+async def edit_text_callback(callback: CallbackQuery, state: FSMContext):
+    post_id = int(callback.data.split(":")[1])
+    await state.update_data(post_id=post_id, msg=callback.message)
+    await callback.message.answer("Введите новый текст для поста:")
+    await state.set_state(EditPostStates.waiting_for_text)
+
+
+@post_router.message(EditPostStates.waiting_for_text, F.chat.id == settings.admin_chat_id)
+async def process_new_text(message: Message, state: FSMContext):
+    data = await state.get_data()
+    post_id = data.get("post_id")
+    msg: Message = data.get("msg")
+    new_text = message.text
+    success = await edit_post_caption(post_id, new_text)
+
+    async with async_session() as session:
+        post = await crud.get_post(session, post_id)
+        text = await make_post_text(post)
+        logger.info(f"Обновленный текст поста ID {post_id}:\n{text}")
+        await msg.edit_caption(caption=text, reply_markup=post_edit_keyboard(post_id))
+    
+    if not success:
+        await message.answer("Ошибка при обновлении текста поста. Ничего не произошло.")
+    await state.clear()
 
 
 @post_router.callback_query(F.data.startswith("ready_post"), F.chat.id == settings.admin_chat_id)
@@ -270,20 +298,20 @@ async def get_edit_post_by_id(message: Message, post_id: int):
         await send_media_with_caption(media_list, message, text, post_edit_keyboard(post.id))
 
 
-@post_router.callback_query(F.data.startswith("ready_for_posting"), F.message.chat.id == settings.admin_chat_id)
-async def ready_for_posting_callback(callback: CallbackQuery):
-    post_id = int(callback.data.split(":")[1])
-    async with async_session() as session:
-        post = await crud.get_post(session, post_id)
-        if not post:
-            await callback.message.answer("Пост не найден.")
-            return
-        post.status = PostStatus.READY
-        session.add(post)
-        await session.commit()
-    await callback.message.edit_caption(caption=f"{callback.message.caption}\n\nПост готов к публикации!",
-                                        reply_markup=post_edit_keyboard_without_delete(post_id)
-                                        )
+# @post_router.callback_query(F.data.startswith("ready_for_posting"), F.message.chat.id == settings.admin_chat_id)
+# async def ready_for_posting_callback(callback: CallbackQuery):
+#     post_id = int(callback.data.split(":")[1])
+#     async with async_session() as session:
+#         post = await crud.get_post(session, post_id)
+#         if not post:
+#             await callback.message.answer("Пост не найден.")
+#             return
+#         post.status = PostStatus.READY
+#         session.add(post)
+#         await session.commit()
+#     await callback.message.edit_caption(caption=f"{callback.message.caption}\n\nПост готов к публикации!",
+#                                         reply_markup=post_edit_keyboard_without_delete(post_id)
+#                                         )
 
 async def send_media_with_caption(media_list: list[PostMedia], message: Message, text: str, keyboard):
     if len(media_list) == 1:
@@ -315,28 +343,6 @@ async def get_random_edit_post_callback(callback: CallbackQuery):
     await get_random_edit_post(callback.message)
 
 
-@post_router.callback_query(F.data.startswith("edit_text"), F.message.chat.id == settings.admin_chat_id)
-async def edit_text_callback(callback: CallbackQuery, state: FSMContext):
-    post_id = int(callback.data.split(":")[1])
-    await state.update_data(post_id=post_id)
-    await callback.message.answer("Введите новый текст для поста:")
-    await state.set_state(EditPostStates.waiting_for_text)
-
-
-@post_router.message(EditPostStates.waiting_for_text, F.chat.id == settings.admin_chat_id)
-async def process_new_text(message: Message, state: FSMContext):
-    data = await state.get_data()
-    post_id = data.get("post_id")
-    new_text = message.text
-    success = await edit_post_caption(post_id, new_text)
-    if success:
-        await get_edit_post_by_id(message, post_id)
-    else:
-        await message.answer("Ошибка при обновлении текста поста. Ничего не произошло.")
-        await get_edit_post_by_id(message, post_id)
-    await state.clear()
-
-
 @post_router.callback_query(F.data.startswith("delete_post"), F.message.chat.id == settings.admin_chat_id)
 async def delete_post_callback(callback: CallbackQuery):
     post_id = int(callback.data.split(":")[1])
@@ -362,7 +368,7 @@ async def not_ready_callback(callback: CallbackQuery):
                                         )
     
 
-@post_router.message(Command("media_post"), F.chat.id == settings.admin_chat_id)
+@post_router.message(Command("no_translate_post"), F.chat.id == settings.admin_chat_id)
 async def get_media_posts(message: Message):
     await message.delete()
     await asyncio.sleep(0.5)
