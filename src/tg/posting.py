@@ -165,7 +165,7 @@ async def publish_post():
 # ==========================================================================================
 
 
-from src.tg.keyboards.posts import post_edit_keyboard, post_edit_keyboard_without_delete, post_menu_keyboard, post_ready_keyboard, post_translate_keyboard
+from src.tg.keyboards.posts import post_edit_keyboard, post_menu_keyboard, post_ready_keyboard, post_translate_keyboard
 
 @post_router.message(Command("post_menu"), F.chat.id == settings.admin_chat_id)
 async def post_menu(message: Message):
@@ -211,7 +211,7 @@ async def make_post_text(post: Post) -> str:
     return f"Пост ID: {post.id}\nСтатус: {post.status}\n\n{post.caption}"
 
 
-@post_router.callback_query(F.data.startswith("no_text_post"), F.message.chat.id == settings.admin_chat_id)
+@post_router.callback_query(F.data.startswith("no_text_post") or F.data.startswith("get_random_edit_post"), F.message.chat.id == settings.admin_chat_id)
 async def get_random_edit_post(callback: CallbackQuery):
     await asyncio.sleep(0.5)
     async with async_session() as session:
@@ -338,19 +338,12 @@ async def send_media_with_caption(media_list: list[PostMedia], message: Message,
         await message.answer("Клавиатура для альбома", reply_markup=keyboard)
 
 
-@post_router.callback_query(F.data.startswith("get_random_edit_post"), F.message.chat.id == settings.admin_chat_id)
-async def get_random_edit_post_callback(callback: CallbackQuery):
-    await get_random_edit_post(callback.message)
-
-
 @post_router.callback_query(F.data.startswith("delete_post"), F.message.chat.id == settings.admin_chat_id)
 async def delete_post_callback(callback: CallbackQuery):
     post_id = int(callback.data.split(":")[1])
     async with async_session() as session:
         await crud.delete_post(session, post_id)
-    await callback.message.edit_caption(caption=f"{callback.message.caption}\n\nПост успешно удален!",
-                                        reply_markup=post_edit_keyboard_without_delete(post_id)
-                                        )
+    await callback.message.edit_caption(caption=f"{callback.message.caption}\n\nПост успешно удален!")
 
 @post_router.callback_query(F.data.startswith("not_ready"), F.message.chat.id == settings.admin_chat_id)
 async def not_ready_callback(callback: CallbackQuery):
@@ -364,7 +357,7 @@ async def not_ready_callback(callback: CallbackQuery):
         session.add(post)
         await session.commit()
     await callback.message.edit_caption(caption=f"{callback.message.caption}\n\nПост снова требует редактирования текста!",
-                                        reply_markup=post_edit_keyboard_without_delete(post_id)
+                                        reply_markup=post_edit_keyboard(post_id)
                                         )
     
 
