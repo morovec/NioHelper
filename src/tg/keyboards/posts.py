@@ -55,10 +55,10 @@ def post_translate_keyboard(post_id: int) -> InlineKeyboardMarkup:
 def post_menu_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(
-        InlineKeyboardButton(text="Посты без текста", callback_data="no_text_posts", style="danger")
+        InlineKeyboardButton(text="Пост без текста", callback_data="no_text_post", style="danger")
     )
     builder.row(
-        InlineKeyboardButton(text="Посты без перевода", callback_data="no_translate_posts", style="primary")
+        InlineKeyboardButton(text="Пост без перевода", callback_data="no_translate_post", style="primary")
     )
     builder.row(
         InlineKeyboardButton(text="Готовые посты", callback_data="ready_posts", style="success")

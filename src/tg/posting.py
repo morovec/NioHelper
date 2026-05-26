@@ -200,7 +200,7 @@ async def edit_post_caption_full(post_id: int, new_caption: str) -> bool:
         await session.commit()
         return True
 
-@post_router.message(Command("edit_post"), F.chat.id == settings.admin_chat_id)
+@post_router.callback_query(F.data.startswith("no_text_post"), F.message.chat.id == settings.admin_chat_id)
 async def get_random_edit_post(message: Message):
     await message.delete()
     await asyncio.sleep(0.5)  # Небольшая пауза, чтобы избежать проблем с API
