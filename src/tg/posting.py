@@ -202,7 +202,6 @@ async def edit_post_caption_full(post_id: int, new_caption: str) -> bool:
 
 @post_router.callback_query(F.data.startswith("no_text_post"), F.message.chat.id == settings.admin_chat_id)
 async def get_random_edit_post(message: Message):
-    await message.delete()
     await asyncio.sleep(0.5)  # Небольшая пауза, чтобы избежать проблем с API
     async with async_session() as session:
         posts = await crud.get_posts(session)
@@ -219,7 +218,6 @@ async def get_random_edit_post(message: Message):
 
 @post_router.message(Command("ready_post"), F.chat.id == settings.admin_chat_id)
 async def get_random_ready_post(message: Message):
-    await message.delete()
     await asyncio.sleep(0.5)  # Небольшая пауза, чтобы избежать проблем с API
     async with async_session() as session:
         posts = await crud.get_posts(session)
@@ -236,7 +234,6 @@ async def get_random_ready_post(message: Message):
 
 @post_router.message(Command("post_by_id"), F.chat.id == settings.admin_chat_id)
 async def get_post_by_id(message: Message):
-    await message.delete()
     post_id = message.text.split()[1]
     await asyncio.sleep(0.5)  # Небольшая пауза, чтобы избежать проблем с API
     async with async_session() as session:
@@ -335,11 +332,6 @@ async def delete_post_callback(callback: CallbackQuery):
     await callback.message.edit_caption(caption=f"{callback.message.caption}\n\nПост успешно удален!",
                                         reply_markup=post_edit_keyboard_without_delete(post_id)
                                         )
-
-
-@post_router.callback_query(F.data.startswith("hide"), F.message.chat.id == settings.admin_chat_id)
-async def hide_post_callback(callback: CallbackQuery):
-    await callback.message.delete()
 
 @post_router.callback_query(F.data.startswith("not_ready"), F.message.chat.id == settings.admin_chat_id)
 async def not_ready_callback(callback: CallbackQuery):
