@@ -350,20 +350,6 @@ async def not_ready_callback(callback: CallbackQuery):
                                         )
     
 
-@post_router.message(Command("no_translate_post"), F.chat.id == settings.admin_chat_id)
-async def get_media_posts(message: Message):
-    await asyncio.sleep(0.5)
-    async with async_session() as session:
-        posts = await crud.get_posts(session)
-        edit_posts = [p for p in posts if p.status in (PostStatus.NEEDS_IMAGE_TRANSLATE, PostStatus.NEEDS_EDIT_AND_TRANSLATE)]
-        if not edit_posts:
-            await message.answer("Нет постов для перевода изображений.")
-            return
-        
-        post = random.choice(edit_posts)
-        media_list = await crud.get_media_by_post_id(session, post.id)
-        text = f"Пост ID: {post.id} Статус: {post.status}\n\n{post.caption}"
-        await send_media_with_caption(media_list, message, text, post_edit_keyboard(post.id))
 
 @post_router.message(Command("delete_post"), F.chat.id == settings.admin_chat_id)
 async def delete_post(message: Message):
@@ -407,5 +393,5 @@ async def get_media_posts(callback: CallbackQuery):
         
         post = random.choice(edit_posts)
         media_list = await crud.get_media_by_post_id(session, post.id)
-        text = f"Пост ID: {post.id} Статус: {post.status}\n\n{post.caption}"
+        text = await make_post_text(post)
         await send_media_with_caption(media_list, callback.message, text, post_edit_keyboard(post.id))
