@@ -18,3 +18,6 @@ class PostStatus(str, enum.Enum):
             "needs_both": "🔄 Редакция + перевод картинки",
         }
         return labels[self.value]
+    
+    def __str__(self):
+        return self.label
