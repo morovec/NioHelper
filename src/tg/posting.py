@@ -54,16 +54,14 @@ async def post(message: Message):
 
 
 async def handle_posting_data(posting_data: str) -> None:
-    time_idx = 0
-    for post_str in posting_data:
+    for i, post_str in enumerate(posting_data):
         try:
             await asyncio.sleep(0.5)  # Небольшая пауза между обработкой постов, чтобы избежать проблем с API
             post_id = await process_single_post(post_str)
             
-            log_msg = f"Пост ...{post_str[-10:-2]} Добавлен! ID: {post_id}"
+            log_msg = f"Пост ...{post_str[-10:-2]} Добавлен! ID: {post_id} | №{i+1}"
             await posting_notify.add_success_post(log_msg)
             
-            time_idx += 1
         except Exception as e:
             await posting_notify.add_error_post(post_str)
             await tg_logger.send_log(f"Ошибка при обработке поста {post_str}:\n{e}")
