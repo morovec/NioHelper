@@ -165,7 +165,7 @@ async def publish_post():
 # ==========================================================================================
 
 
-from src.tg.keyboards.posts import post_edit_keyboard, post_menu_keyboard, post_ready_keyboard, post_translate_keyboard
+from src.tg.keyboards.posts import post_edit_keyboard, edit_post_only_keyboard, post_menu_keyboard, post_ready_keyboard, post_translate_keyboard
 
 @post_router.message(Command("post_menu"), F.chat.id == settings.admin_chat_id)
 async def post_menu(message: Message):
@@ -297,22 +297,6 @@ async def get_edit_post_by_id(message: Message, post_id: int):
         text = await make_post_text(post)
         await send_media_with_caption(media_list, message, text, post_edit_keyboard(post.id))
 
-
-# @post_router.callback_query(F.data.startswith("ready_for_posting"), F.message.chat.id == settings.admin_chat_id)
-# async def ready_for_posting_callback(callback: CallbackQuery):
-#     post_id = int(callback.data.split(":")[1])
-#     async with async_session() as session:
-#         post = await crud.get_post(session, post_id)
-#         if not post:
-#             await callback.message.answer("Пост не найден.")
-#             return
-#         post.status = PostStatus.READY
-#         session.add(post)
-#         await session.commit()
-#     await callback.message.edit_caption(caption=f"{callback.message.caption}\n\nПост готов к публикации!",
-#                                         reply_markup=post_edit_keyboard_without_delete(post_id)
-#                                         )
-
 async def send_media_with_caption(media_list: list[PostMedia], message: Message, text: str, keyboard):
     if len(media_list) == 1:
         item = media_list[0]
@@ -357,13 +341,12 @@ async def not_ready_callback(callback: CallbackQuery):
         session.add(post)
         await session.commit()
     await callback.message.edit_caption(caption=f"{callback.message.caption}\n\nПост снова требует редактирования текста!",
-                                        reply_markup=post_edit_keyboard(post_id)
+                                        reply_markup=edit_post_only_keyboard(post_id)
                                         )
     
 
 @post_router.message(Command("no_translate_post"), F.chat.id == settings.admin_chat_id)
 async def get_media_posts(message: Message):
-    await message.delete()
     await asyncio.sleep(0.5)
     async with async_session() as session:
         posts = await crud.get_posts(session)

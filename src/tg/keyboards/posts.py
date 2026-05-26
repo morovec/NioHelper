@@ -14,6 +14,14 @@ def post_edit_keyboard(post_id: int) -> InlineKeyboardMarkup:
     )
     return builder.as_markup()
 
+def edit_post_only_keyboard(post_id: int) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text="Взять другой пост", callback_data=f"no_text_post", style="primary")
+    )
+
+    return builder.as_markup()
+
 def post_ready_keyboard(post_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(
