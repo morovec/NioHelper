@@ -257,20 +257,23 @@ async def process_new_text(message: Message, state: FSMContext):
     await state.clear()
 
 
-@post_router.callback_query(F.data.startswith("ready_post"), F.chat.id == settings.admin_chat_id)
+@post_router.callback_query(F.data.startswith("ready_post"), F.message.chat.id == settings.admin_chat_id)
 async def get_random_ready_post(callback: CallbackQuery):
     await asyncio.sleep(0.5)
-    async with async_session() as session:
-        posts = await crud.get_posts(session)
-        edit_posts = [p for p in posts if p.status in (PostStatus.READY)]
-        if not edit_posts:
-            await callback.message.answer("Нет постов.")
-            return
-        
-        post = random.choice(edit_posts)
-        media_list = await crud.get_media_by_post_id(session, post.id)
-        text = await make_post_text(post)
-        await send_media_with_caption(media_list, callback.message, text, post_ready_keyboard(post.id))
+    try:
+        async with async_session() as session:
+            posts = await crud.get_posts(session)
+            ready_posts = [p for p in posts if p.status in (PostStatus.READY)]
+            if not ready_posts:
+                await callback.message.answer("Нет готовых постов.")
+                return
+            
+            post = random.choice(ready_posts)
+            media_list = await crud.get_media_by_post_id(session, post.id)
+            text = await make_post_text(post)
+            await send_media_with_caption(media_list, callback.message, text, post_ready_keyboard(post.id))
+    except Exception as e:
+        await tg_logger.send_log(f"Ошибка при отправке готового поста для проверки:\n{e}")
 
 
 @post_router.message(Command("post_by_id"), F.chat.id == settings.admin_chat_id)
@@ -329,6 +332,7 @@ async def delete_post_callback(callback: CallbackQuery):
         await crud.delete_post(session, post_id)
     await callback.message.edit_caption(caption=f"{callback.message.caption}\n\nПост успешно удален!",
                                         reply_markup=edit_post_only_keyboard(post_id))
+
 
 @post_router.callback_query(F.data.startswith("not_ready"), F.message.chat.id == settings.admin_chat_id)
 async def not_ready_callback(callback: CallbackQuery):
@@ -389,3 +393,19 @@ async def delete_posts(message: Message):
         async with async_session() as session:
             await crud.delete_post(session, post_id)
     await message.answer("Посты успешно удалены!")
+
+
+@post_router.callback_query(F.data.startswith("no_translate_post"), F.message.chat.id == settings.admin_chat_id)
+async def get_media_posts(callback: CallbackQuery):
+    await asyncio.sleep(0.5)  # Небольшая пауза, чтобы избежать проблем с API
+    async with async_session() as session:
+        posts = await crud.get_posts(session)
+        edit_posts = [p for p in posts if p.status in (PostStatus.NEEDS_IMAGE_TRANSLATE, PostStatus.NEEDS_EDIT_AND_TRANSLATE)]
+        if not edit_posts:
+            await callback.message.answer("Нет постов для перевода изображений.")
+            return
+        
+        post = random.choice(edit_posts)
+        media_list = await crud.get_media_by_post_id(session, post.id)
+        text = f"Пост ID: {post.id} Статус: {post.status}\n\n{post.caption}"
+        await send_media_with_caption(media_list, callback.message, text, post_edit_keyboard(post.id))
