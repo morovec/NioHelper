@@ -167,7 +167,7 @@ async def publish_post():
 # ==========================================================================================
 
 
-from src.tg.keyboards.posts import post_edit_keyboard, post_edit_keyboard_without_delete, post_ready_keyboard, post_translate_keyboard
+from src.tg.keyboards.posts import post_edit_keyboard, post_edit_keyboard_without_delete, post_menu_keyboard, post_ready_keyboard, post_translate_keyboard
 
 async def edit_post_caption(post_id: int, new_caption: str) -> bool:
     async with async_session() as session:
@@ -404,3 +404,8 @@ async def delete_posts(message: Message):
             await crud.delete_post(session, post_id)
     await message.answer("Посты успешно удалены!")
 
+
+@post_router.message(Command("post_menu"), F.chat.id == settings.admin_chat_id)
+async def post_menu(message: Message):
+    await asyncio.sleep(0.5)  # Небольшая пауза, чтобы избежать проблем с API
+    await message.answer("Выберите категорию постов для управления:", reply_markup=post_menu_keyboard())

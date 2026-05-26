@@ -50,3 +50,17 @@ def post_translate_keyboard(post_id: int) -> InlineKeyboardMarkup:
         InlineKeyboardButton(text="Скрыть", callback_data=f"hide")
     )
     return builder.as_markup()
+
+
+def post_menu_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text="Посты без текста", callback_data="no_text_posts", style="danger")
+    )
+    builder.row(
+        InlineKeyboardButton(text="Посты без перевода", callback_data="no_translate_posts", style="primary")
+    )
+    builder.row(
+        InlineKeyboardButton(text="Готовые посты", callback_data="ready_posts", style="success")
+    )
+    return builder.as_markup(resize_keyboard=True)
