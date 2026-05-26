@@ -57,6 +57,7 @@ async def replace_images(post_id: str) -> None:
         # Получаем текущие вложения
         async with async_session() as session:
             attachments = await crud.get_media_by_post_id(session=session, post_id=post_id)
+            post = await crud.get_post(session=session, post_id=post_id)
 
             if not attachments:
                 await tg_logger.send_log("В посте нет изображений")
@@ -66,13 +67,16 @@ async def replace_images(post_id: str) -> None:
 
             # Обновляем вложения в базе данных
             await crud.update_post_media(session=session, post_id=post_id, new_media_ids=new_attachments)
-            await crud.update_post_status(session=session, post_id=post_id, status=PostStatus.READY)
-            
+            if post.status == PostStatus.NEEDS_IMAGE_TRANSLATE:
+                await crud.update_post_status(session=session, post_id=post_id, status=PostStatus.READY)
+            else:
+                await crud.update_post_status(session=session, post_id=post_id, status=PostStatus.NEEDS_TEXT_EDIT)
+
             return True
             
     except Exception as e: 
         await tg_logger.send_log(f"Ошибка при замене изображений: {e}")
-        return 
+        return False
     
 @replace_router.message(Command("add_img"), F.chat.id == settings.admin_chat_id)
 async def add_img(message: Message):
