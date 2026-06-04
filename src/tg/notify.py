@@ -41,7 +41,6 @@ class PostingNotify:
               )
             
     async def add_success_post(self, post_msg):
-        await asyncio.sleep(1)
         if "Ошибки" in self.message:
             split_message = self.message.split("\n\n")
             self.message = split_message[0] + "\n" + post_msg + "\n\n" + split_message[1]
