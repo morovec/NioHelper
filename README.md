@@ -108,12 +108,6 @@ NioHelper/
    python run_tg.py
    ```
 
-   Для VK-части:
-
-   ```bash
-   python run_vk.py
-   ```
-
    На Windows можно запустить через `start.bat`.
 
 ## Конфигурация
@@ -192,8 +186,8 @@ pytest
 NioHelper создан для внутренних нужд **PSA Union**.
 
 - Telegram: [@psa_union](https://t.me/psa_union)
-- VK: <!-- ссылка на группу -->
-- Сайт: <!-- ссылка на сайт -->
+- VK: [@psa_union](https://vk.ru/psa_union)
+- Сайт: [psaunion.ru](https://psaunion.ru)
 
 ## Лицензия
 
