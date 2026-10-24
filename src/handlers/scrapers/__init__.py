@@ -51,5 +51,5 @@ async def get_post_from_url(url: str) -> PostParsed:
         return get_tweet(url)
     
     elif domain in vk_instances:
-        url = url.replace(domain, "vk.com")
+        url = url.replace(domain, "vk.ru")
         return await get_vk_post(url)

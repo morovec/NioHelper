@@ -55,7 +55,13 @@ async def get_medias(file_paths: list[str]) -> list[Media]:
 
 async def process_single_post(post_str: str) -> int:
     await asyncio.sleep(1)
-    post_url, tags = map(str, post_str.split())
+    post_parts = post_str.split()
+    if len(post_parts) != 2:
+        raise ValueError(
+            "Формат строки поста: <ссылка> <тег категории>. "
+            "Например: https://vk.ru/wall-230189575_429 р"
+        )
+    post_url, tags = post_parts
     data = await get_post_from_url(post_url)
     logger.info(f"Полученные данные для поста: {data}")
     if "и" in tags:
